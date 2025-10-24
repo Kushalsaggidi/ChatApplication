@@ -7,8 +7,13 @@ const messageRoutes = require("./routes/messageRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const path = require("path");
 
-dotenv.config();
+require('dotenv').config();
 connectDB();
+const MONGO_URI = process.env.MONGO_URI;
+
+console.log("Loaded PORT:", process.env.PORT);
+console.log("Loaded MONGO_URI:", MONGO_URI);
+
 const app = express();
 
 app.use(express.json()); // to accept json data
