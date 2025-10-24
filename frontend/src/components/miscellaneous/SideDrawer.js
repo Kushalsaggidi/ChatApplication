@@ -22,7 +22,7 @@ import { Avatar } from "@chakra-ui/avatar";
 import { useHistory } from "react-router-dom";
 import { useState } from "react";
 import axios from "axios";
-import { useToast } from "@chakra-ui/toast";
+import { useToast } from "@chakra-ui/react";
 import ChatLoading from "../ChatLoading";
 import { Spinner } from "@chakra-ui/spinner";
 import ProfileModal from "./ProfileModal";
