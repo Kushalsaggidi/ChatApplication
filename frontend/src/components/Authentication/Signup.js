@@ -51,7 +51,7 @@ const Signup = () => {
         },
       };
       const { data } = await axios.post(
-        "/api/user",
+        `${process.env.REACT_APP_API_URL}/api/user`,
         {
           name,
           email,
