@@ -1,5 +1,5 @@
-import { FormControl } from "@chakra-ui/form-control";
-import { Input } from "@chakra-ui/input";
+import { FormControl } from "@chakra-ui/react";
+import { Input } from "@chakra-ui/react";
 import { Box, Text } from "@chakra-ui/react";
 import "./styles.css";
 import { IconButton, Spinner, useToast } from "@chakra-ui/react";
@@ -9,7 +9,6 @@ import axios from "axios";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import ScrollableChat from "./ScrollableChat";
-import Lottie from "react-lottie";
 import animationData from "../animations/typing.json";
 
 import io from "socket.io-client";
@@ -228,17 +227,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               mt={3}
             >
               {istyping ? (
-                <div>
-                  <Lottie
-                    options={defaultOptions}
-                    // height={50}
-                    width={70}
-                    style={{ marginBottom: 15, marginLeft: 0 }}
-                  />
+                <div style={{ marginBottom: 15, marginLeft: 0 }}>
+                  <Spinner size="sm" color="blue.500" />
                 </div>
               ) : (
                 <></>
               )}
+
               <Input
                 variant="filled"
                 bg="#E0E0E0"
