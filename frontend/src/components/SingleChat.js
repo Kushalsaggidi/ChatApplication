@@ -51,8 +51,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
       setLoading(true);
 
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
       const { data } = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/message/${selectedChat._id}`,
+        `${API_URL}/api/message/${selectedChat._id}`,
         config
       );
       setMessages(data);
@@ -82,8 +83,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           },
         };
         setNewMessage("");
+        const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
         const { data } = await axios.post(
-          `${process.env.REACT_APP_API_URL}/api/message`,
+          `${API_URL}/api/message`,
           {
             content: newMessage,
             chatId: selectedChat,
@@ -163,7 +165,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     <>
       {selectedChat ? (
         <Box
-          d="flex"
+          display="flex"
           flexDir="column"
           h="100%"
           w="100%"
@@ -174,15 +176,16 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             pb={3}
             px={2}
             fontFamily="Work sans"
-            d="flex"
+            display="flex"
             justifyContent={{ base: "space-between" }}
             alignItems="center"
             flexShrink={0}
           >
             <IconButton
-              d={{ base: "flex", md: "none" }}
+              display={{ base: "flex", md: "none" }}
               icon={<ArrowBackIcon />}
               onClick={() => setSelectedChat("")}
+              aria-label="Go back"
             />
             {messages &&
               (!selectedChat.isGroupChat ? (
@@ -206,7 +209,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
           {/* Messages Container */}
           <Box
-            d="flex"
+            display="flex"
             flexDir="column"
             justifyContent="flex-end"
             p={3}
@@ -252,7 +255,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           </Box>
         </Box>
       ) : (
-        <Box d="flex" alignItems="center" justifyContent="center" h="100%">
+        <Box display="flex" alignItems="center" justifyContent="center" h="100%" bg="gray.50" borderRadius="lg">
           <Text fontSize="3xl" pb={3} fontFamily="Work sans">
             Click on a user to start chatting
           </Text>

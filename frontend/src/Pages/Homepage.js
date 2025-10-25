@@ -19,13 +19,13 @@ function Home() {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("userInfo"));
 
-    if (user) navigate("/chats");
+    if (user) navigate("/chat");
   }, [navigate]);
 
   return (
     <Container maxW="xl" centerContent>
       <Box
-        d="flex"
+        display="flex"
         justifyContent="center"
         p={3}
         bg="white"
@@ -33,12 +33,13 @@ function Home() {
         m="40px 0 15px 0"
         borderRadius="lg"
         borderWidth="1px"
+        boxShadow="lg"
       >
         <Text fontSize="4xl" fontFamily="Work sans">
           Talk-A-Tive
         </Text>
       </Box>
-      <Box bg="white" w="100%" p={4} borderRadius="lg" borderWidth="1px">
+      <Box bg="white" w="100%" p={4} borderRadius="lg" borderWidth="1px" boxShadow="lg">
         <Tabs isFitted variant="soft-rounded">
           <TabList mb="1em">
             <Tab>Login</Tab>
