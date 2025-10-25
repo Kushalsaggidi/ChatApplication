@@ -101,19 +101,19 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
     if (isRead) {
       return (
         <HStack spacing={0} color="blue.500">
-          <CheckIcon boxSize={3} />
-          <CheckIcon boxSize={3} ml={-1} />
+          <CheckIcon boxSize={2.5} />
+          <CheckIcon boxSize={2.5} ml={-1} />
         </HStack>
       );
     } else if (isDelivered) {
       return (
         <HStack spacing={0} color="gray.500">
-          <CheckIcon boxSize={3} />
-          <CheckIcon boxSize={3} ml={-1} />
+          <CheckIcon boxSize={2.5} />
+          <CheckIcon boxSize={2.5} ml={-1} />
         </HStack>
       );
     } else {
-      return <CheckIcon boxSize={3} color="gray.400" />;
+      return <CheckIcon boxSize={2.5} color="gray.400" />;
     }
   };
 
@@ -121,11 +121,10 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
     const element = document.getElementById(`message-${messageId}`);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Highlight effect
-      element.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+      element.style.backgroundColor = 'rgba(255, 255, 0, 0.2)';
       setTimeout(() => {
         element.style.backgroundColor = 'transparent';
-      }, 1500);
+      }, 1000);
     }
   };
 
@@ -140,96 +139,91 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
               key={m._id}
               id={`message-${m._id}`}
               display="flex"
-              flexDirection="column"
-              alignItems={isSentByMe ? "flex-end" : "flex-start"}
-              mb={3}
+              alignItems="flex-start"
+              justifyContent={isSentByMe ? "flex-end" : "flex-start"}
+              mb={1}
               px={2}
               onMouseEnter={() => setHoveredMessage(m._id)}
               onMouseLeave={() => setHoveredMessage(null)}
-              transition="background-color 0.3s ease"
+              transition="background-color 0.2s ease"
             >
               <HStack 
-                spacing={2} 
-                alignItems="flex-end"
+                spacing={1} 
+                alignItems="flex-start"
                 flexDirection={isSentByMe ? "row-reverse" : "row"}
-                w="100%"
-                justifyContent={isSentByMe ? "flex-end" : "flex-start"}
+                maxW="75%"
               >
                 {/* Avatar for received messages */}
                 {!isSentByMe && (
                   isSameSender(messages, m, i, user._id) ||
                   isLastMessage(messages, i, user._id)
                 ) ? (
-                  <Tooltip label={m.sender.name} placement="bottom-start" hasArrow>
-                    <Avatar
-                      size="sm"
-                      cursor="pointer"
-                      name={m.sender.name}
-                      src={m.sender.pic}
-                    />
-                  </Tooltip>
+                  <Avatar
+                    size="xs"
+                    name={m.sender.name}
+                    src={m.sender.pic}
+                    mt={1}
+                  />
                 ) : !isSentByMe ? (
-                  <Box w="32px" /> // Spacer for alignment
+                  <Box w="24px" />
                 ) : null}
 
                 <VStack
                   align={isSentByMe ? "flex-end" : "flex-start"}
-                  spacing={1}
-                  maxW="75%"
+                  spacing={0}
                   position="relative"
                 >
-                  {/* Sender Name (only for received messages in group chats) */}
-                  {!isSentByMe && (
-                    <Text fontSize="xs" color="gray.600" fontWeight="500" ml={2}>
-                      {m.sender.name}
-                    </Text>
-                  )}
-
-                  {/* Reply Preview - Shows which message this is replying to */}
-                  {m.replyTo && (
-                    <Box
-                      bg={isSentByMe ? "rgba(135, 206, 235, 0.3)" : "rgba(144, 238, 144, 0.3)"}
-                      p={2}
-                      borderRadius="md"
-                      mb={1}
-                      fontSize="xs"
-                      borderLeft="3px solid"
-                      borderLeftColor={isSentByMe ? "#4A90E2" : "#4CAF50"}
-                      cursor="pointer"
-                      onClick={() => m.replyTo._id && scrollToMessage(m.replyTo._id)}
-                      _hover={{ opacity: 0.8 }}
-                      maxW="100%"
-                    >
-                      <HStack spacing={2}>
-                        <Text fontSize="10px" color="gray.500">↩</Text>
-                        <VStack align="start" spacing={0}>
-                          <Text fontWeight="bold" color={isSentByMe ? "#2B6CB0" : "#2F855A"} fontSize="xs">
-                            {m.replyTo.sender?.name || "User"}
-                          </Text>
-                          <Text noOfLines={2} color="gray.700" fontSize="xs">
-                            {m.replyTo.content || "[Attachment]"}
-                          </Text>
-                        </VStack>
-                      </HStack>
-                    </Box>
-                  )}
-
                   {/* Message Bubble */}
                   <Box
-                    bg={isSentByMe ? "#BEE3F8" : "#B9F5D0"}
-                    borderRadius="lg"
-                    p={3}
+                    bg={isSentByMe ? "#DCF8C6" : "white"}
+                    borderRadius="8px"
+                    p={2}
                     position="relative"
-                    boxShadow="sm"
-                    borderBottomRightRadius={isSentByMe ? "2px" : "lg"}
-                    borderBottomLeftRadius={isSentByMe ? "lg" : "2px"}
+                    boxShadow="0 1px 0.5px rgba(0,0,0,0.13)"
+                    minW="60px"
+                    maxW="100%"
                   >
+                    {/* Compact Reply Preview - WhatsApp Style */}
+                    {m.replyTo && (
+                      <Box
+                        bg={isSentByMe ? "rgba(0,0,0,0.05)" : "rgba(0,0,0,0.05)"}
+                        borderLeft="3px solid"
+                        borderLeftColor={isSentByMe ? "#06cf9c" : "#8696a0"}
+                        borderRadius="3px"
+                        p={1.5}
+                        mb={1.5}
+                        fontSize="xs"
+                        cursor="pointer"
+                        onClick={() => m.replyTo._id && scrollToMessage(m.replyTo._id)}
+                        _hover={{ opacity: 0.8 }}
+                      >
+                        <Text 
+                          fontWeight="600" 
+                          color={isSentByMe ? "#06cf9c" : "#8696a0"} 
+                          fontSize="11px"
+                          mb={0.5}
+                        >
+                          {m.replyTo.sender?.name || "User"}
+                        </Text>
+                        <Text 
+                          color="gray.700" 
+                          fontSize="11px"
+                          noOfLines={1}
+                          opacity={0.8}
+                        >
+                          {m.replyTo.content || "[Media]"}
+                        </Text>
+                      </Box>
+                    )}
+
                     {/* Message Content */}
                     {m.content && (
                       <Text 
-                        color="gray.800" 
-                        wordBreak="break-word" 
+                        fontSize="14px"
+                        color="#111b21"
+                        wordBreak="break-word"
                         whiteSpace="pre-wrap"
+                        lineHeight="19px"
                       >
                         {m.content}
                       </Text>
@@ -237,7 +231,7 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
 
                     {/* File Attachments */}
                     {m.files && m.files.length > 0 && (
-                      <VStack align="start" mt={m.content ? 2 : 0} spacing={2}>
+                      <VStack align="start" mt={m.content ? 2 : 0} spacing={1}>
                         {m.files.map((file, index) => (
                           <Box key={index} w="100%">
                             {file.mimetype.startsWith('image/') ? (
@@ -258,18 +252,18 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
                                 alignItems="center"
                                 gap={2}
                                 p={2}
-                                bg="whiteAlpha.500"
+                                bg="gray.50"
                                 borderRadius="md"
-                                _hover={{ bg: "whiteAlpha.700" }}
+                                fontSize="sm"
                               >
-                                <Text fontSize="2xl">
+                                <Text fontSize="lg">
                                   {file.mimetype.startsWith('video/') ? '🎥' :
                                    file.mimetype.startsWith('audio/') ? '🎵' :
                                    file.mimetype.includes('pdf') ? '📄' : '📎'}
                                 </Text>
-                                <Box flex={1}>
-                                  <Text fontSize="sm" fontWeight="500">{file.originalName}</Text>
-                                  <Text fontSize="xs" color="gray.600">
+                                <Box>
+                                  <Text fontSize="xs" noOfLines={1}>{file.originalName}</Text>
+                                  <Text fontSize="10px" color="gray.500">
                                     {(file.size / 1024).toFixed(1)} KB
                                   </Text>
                                 </Box>
@@ -280,57 +274,68 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
                       </VStack>
                     )}
 
-                    {/* Message Actions on Hover */}
+                    {/* Time & Status - WhatsApp style (bottom right corner) */}
+                    <HStack 
+                      spacing={1} 
+                      position="relative"
+                      justifyContent="flex-end"
+                      mt={0.5}
+                      ml={2}
+                    >
+                      {m.isEdited && (
+                        <Text fontSize="9px" color="gray.500" mr={0.5}>
+                          edited
+                        </Text>
+                      )}
+                      <Text fontSize="10px" color="gray.500">
+                        {formatTime(m.createdAt)}
+                      </Text>
+                      {getMessageStatus(m)}
+                    </HStack>
+
+                    {/* Message Actions - Minimal */}
                     {hoveredMessage === m._id && (
                       <HStack
                         position="absolute"
-                        top="-30px"
+                        top="-25px"
                         right={isSentByMe ? "0" : "auto"}
                         left={isSentByMe ? "auto" : "0"}
                         bg="white"
-                        boxShadow="lg"
-                        borderRadius="full"
-                        p={1}
+                        boxShadow="0 2px 5px rgba(0,0,0,0.15)"
+                        borderRadius="md"
+                        p={0.5}
                         spacing={0}
                         zIndex={10}
                       >
                         <IconButton
                           size="xs"
-                          icon={<Text fontSize="md">↩</Text>}
+                          icon={<Text fontSize="sm">↩</Text>}
                           onClick={() => onReply && onReply(m)}
-                          aria-label="Reply"
-                          colorScheme="blue"
                           variant="ghost"
-                          borderRadius="full"
+                          aria-label="Reply"
                         />
 
                         <IconButton
                           size="xs"
-                          icon={<CopyIcon />}
+                          icon={<CopyIcon boxSize={3} />}
                           onClick={() => copyToClipboard(m.content)}
-                          aria-label="Copy"
-                          colorScheme="gray"
                           variant="ghost"
-                          borderRadius="full"
+                          aria-label="Copy"
                         />
 
                         <Menu>
                           <MenuButton
                             as={IconButton}
                             size="xs"
-                            icon={<Text fontSize="md">😀</Text>}
-                            aria-label="React"
-                            colorScheme="yellow"
+                            icon={<Text fontSize="sm">😀</Text>}
                             variant="ghost"
-                            borderRadius="full"
+                            aria-label="React"
                           />
-                          <MenuList minW="150px">
-                            <MenuItem onClick={() => addReaction(m._id, "👍")}>👍 Like</MenuItem>
-                            <MenuItem onClick={() => addReaction(m._id, "❤️")}>❤️ Love</MenuItem>
-                            <MenuItem onClick={() => addReaction(m._id, "😂")}>😂 Laugh</MenuItem>
-                            <MenuItem onClick={() => addReaction(m._id, "😮")}>😮 Wow</MenuItem>
-                            <MenuItem onClick={() => addReaction(m._id, "😢")}>😢 Sad</MenuItem>
-                            <MenuItem onClick={() => addReaction(m._id, "😡")}>😡 Angry</MenuItem>
+                          <MenuList minW="120px" fontSize="sm">
+                            <MenuItem onClick={() => addReaction(m._id, "👍")}>👍</MenuItem>
+                            <MenuItem onClick={() => addReaction(m._id, "❤️")}>❤️</MenuItem>
+                            <MenuItem onClick={() => addReaction(m._id, "😂")}>😂</MenuItem>
+                            <MenuItem onClick={() => addReaction(m._id, "😮")}>😮</MenuItem>
                           </MenuList>
                         </Menu>
 
@@ -338,39 +343,29 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
                           <>
                             <IconButton
                               size="xs"
-                              icon={<EditIcon />}
+                              icon={<EditIcon boxSize={3} />}
                               onClick={() => onEdit && onEdit(m)}
-                              aria-label="Edit"
-                              colorScheme="green"
                               variant="ghost"
-                              borderRadius="full"
+                              aria-label="Edit"
                             />
 
                             <IconButton
                               size="xs"
-                              icon={<DeleteIcon />}
+                              icon={<DeleteIcon boxSize={3} />}
                               onClick={() => deleteMessage(m._id)}
-                              aria-label="Delete"
-                              colorScheme="red"
                               variant="ghost"
-                              borderRadius="full"
+                              colorScheme="red"
+                              aria-label="Delete"
                             />
                           </>
                         )}
                       </HStack>
                     )}
-
-                    {/* Edited Badge */}
-                    {m.isEdited && (
-                      <Text fontSize="10px" color="gray.500" mt={1} fontStyle="italic">
-                        edited
-                      </Text>
-                    )}
                   </Box>
 
-                  {/* Reactions */}
+                  {/* Reactions - Compact */}
                   {m.reactions && m.reactions.length > 0 && (
-                    <HStack spacing={1} mt={1}>
+                    <HStack spacing={0.5} mt={0.5}>
                       {Object.entries(
                         m.reactions.reduce((acc, reaction) => {
                           acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
@@ -381,22 +376,18 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
                           key={emoji}
                           cursor="pointer"
                           onClick={() => addReaction(m._id, emoji)}
-                          colorScheme="gray"
-                          fontSize="xs"
+                          fontSize="10px"
                           borderRadius="full"
-                          px={2}
+                          px={1.5}
+                          py={0.5}
+                          bg="white"
+                          boxShadow="sm"
                         >
                           {emoji} {count}
                         </Badge>
                       ))}
                     </HStack>
                   )}
-
-                  {/* Timestamp and Status */}
-                  <HStack spacing={1} fontSize="10px" color="gray.500" mt={1}>
-                    <Text>{formatTime(m.createdAt)}</Text>
-                    {getMessageStatus(m)}
-                  </HStack>
                 </VStack>
               </HStack>
             </Box>
