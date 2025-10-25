@@ -13,7 +13,7 @@ import { useNavigate } from "react-router";
 import Login from "../components/Authentication/Login";
 import Signup from "../components/Authentication/Signup";
 
-function Homepage() {
+function Home() {
   const navigate = useNavigate();
 
   useEffect(() => {
