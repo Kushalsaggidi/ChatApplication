@@ -1,18 +1,17 @@
 import { FormControl } from "@chakra-ui/react";
 import { Input } from "@chakra-ui/react";
-import { Box, Text, VStack } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 import { HStack, Button } from "@chakra-ui/react";
 import "./styles.css";
 import { IconButton, Spinner, useToast } from "@chakra-ui/react";
 import FileUpload from "./FileUpload";
 import { getSender, getSenderFull } from "../config/ChatLogics";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import ScrollableChat from "./ScrollableChat";
 import animationData from "../animations/typing.json";
-
 import io from "socket.io-client";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import { ChatState } from "../Context/ChatProvider";
@@ -33,19 +32,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
+  
+  // Add refs for scrolling
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  
   const toast = useToast();
 
-  const defaultOptions = {
-    loop: true,
-    autoplay: true,
-    animationData: animationData,
-    rendererSettings: {
-      preserveAspectRatio: "xMidYMid slice",
-    },
-  };
-
-  const { selectedChat, setSelectedChat, user, notification, setNotification } =
-    ChatState();
+  const { selectedChat, setSelectedChat, user, notification, setNotification } = ChatState();
 
   const fetchMessages = async () => {
     if (!selectedChat) return;
@@ -77,6 +71,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         isClosable: true,
         position: "bottom",
       });
+      setLoading(false);
     }
   };
 
@@ -118,7 +113,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           }
           
           // Add files to form data
-          selectedFiles.forEach((file, index) => {
+          selectedFiles.forEach((file) => {
             formData.append('files', file);
           });
           
@@ -214,48 +209,58 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
+  // Scroll to bottom function
+  const scrollToBottom = (behavior = 'smooth') => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    }
+  };
+
+  // Socket setup
   useEffect(() => {
     socket = io(ENDPOINT);
     socket.emit("setup", user);
     socket.on("connected", () => setSocketConnected(true));
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
-
     // eslint-disable-next-line
   }, []);
 
+  // Fetch messages when chat changes
   useEffect(() => {
     fetchMessages();
-
     selectedChatCompare = selectedChat;
     // eslint-disable-next-line
   }, [selectedChat]);
 
-  // Auto scroll to bottom when new messages arrive
+  // Auto scroll when messages load or change
   useEffect(() => {
-    const messagesContainer = document.querySelector('.messages');
-    if (messagesContainer) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    if (!loading && messages.length > 0) {
+      setTimeout(() => {
+        scrollToBottom('auto');
+      }, 100);
     }
-  }, [messages]);
+  }, [messages, loading]);
+
+  // Scroll when chat changes
+  useEffect(() => {
+    if (selectedChat && !loading) {
+      setTimeout(() => {
+        scrollToBottom('auto');
+      }, 100);
+    }
+  }, [selectedChat]);
 
   // Handle scroll events to show/hide scroll button
-  const handleScroll = (e) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.target;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-    setShowScrollButton(!isNearBottom);
-  };
-
-  const scrollToBottom = () => {
-    const messagesContainer = document.querySelector('.messages');
-    if (messagesContainer) {
-      messagesContainer.scrollTo({
-        top: messagesContainer.scrollHeight,
-        behavior: 'smooth'
-      });
+  const handleScroll = () => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollButton(!isNearBottom);
     }
   };
 
+  // Handle incoming messages
   useEffect(() => {
     socket.on("message recieved", (newMessageRecieved) => {
       if (
@@ -361,6 +366,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               />
             ) : (
               <Box 
+                ref={messagesContainerRef}
                 flex={1} 
                 overflowY="auto" 
                 position="relative"
@@ -389,6 +395,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   onEdit={handleEdit}
                 />
                 
+                {/* Scroll anchor */}
+                <div ref={messagesEndRef} />
+                
                 {/* Scroll to bottom button */}
                 {showScrollButton && (
                   <IconButton
@@ -399,7 +408,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                     colorScheme="blue"
                     borderRadius="full"
                     boxShadow="lg"
-                    onClick={scrollToBottom}
+                    onClick={() => scrollToBottom('smooth')}
                     aria-label="Scroll to bottom"
                     icon={<Text fontSize="lg">↓</Text>}
                     _hover={{ transform: "scale(1.1)" }}
@@ -450,7 +459,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 mb={2}
                 borderLeft="3px solid"
                 borderLeftColor="yellow.400"
-                animation="pulse 2s infinite"
               >
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                   <HStack>
