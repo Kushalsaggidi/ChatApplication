@@ -4,12 +4,11 @@ import {
   Image, Link, Badge 
 } from "@chakra-ui/react";
 import { Tooltip } from "@chakra-ui/react";
-import { ChevronDownIcon, CopyIcon, EditIcon, DeleteIcon, CheckIcon } from "@chakra-ui/icons";
+import { CopyIcon, EditIcon, DeleteIcon, CheckIcon } from "@chakra-ui/icons";
 import ScrollableFeed from "react-scrollable-feed";
 import {
   isLastMessage,
   isSameSender,
-  isSameSenderMargin,
   isSameUser,
 } from "../config/ChatLogics";
 import { ChatState } from "../Context/ChatProvider";
@@ -91,13 +90,12 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Get message status (sent, delivered, read)
   const getMessageStatus = (message) => {
     if (!message.sender || message.sender._id !== user._id) {
-      return null; // Don't show status for received messages
+      return null;
     }
 
-    const isRead = message.readBy && message.readBy.length > 1; // More than just sender
+    const isRead = message.readBy && message.readBy.length > 1;
     const isDelivered = message.deliveredTo && message.deliveredTo.length > 1;
 
     if (isRead) {
@@ -119,220 +117,291 @@ const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
     }
   };
 
+  const scrollToMessage = (messageId) => {
+    const element = document.getElementById(`message-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight effect
+      element.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+      setTimeout(() => {
+        element.style.backgroundColor = 'transparent';
+      }, 1500);
+    }
+  };
+
   return (
     <ScrollableFeed forceScroll={true}>
       {messages &&
-        messages.map((m, i) => (
-          <Box
-            key={m._id}
-            display="flex"
-            flexDirection="column"
-            mb={2}
-            onMouseEnter={() => setHoveredMessage(m._id)}
-            onMouseLeave={() => setHoveredMessage(null)}
-          >
-            <Box display="flex" alignItems="flex-end">
-              {(isSameSender(messages, m, i, user._id) ||
-                isLastMessage(messages, i, user._id)) && (
-                <Tooltip label={m.sender.name} placement="bottom-start" hasArrow>
-                  <Avatar
-                    mt="7px"
-                    mr={1}
-                    size="sm"
-                    cursor="pointer"
-                    name={m.sender.name}
-                    src={m.sender.pic}
-                  />
-                </Tooltip>
-              )}
-
-              <Box
-                position="relative"
-                maxW="75%"
-                ml={isSameSenderMargin(messages, m, i, user._id)}
-                mt={isSameUser(messages, m, i) ? 1 : 3}
+        messages.map((m, i) => {
+          const isSentByMe = m.sender._id === user._id;
+          
+          return (
+            <Box
+              key={m._id}
+              id={`message-${m._id}`}
+              display="flex"
+              flexDirection="column"
+              alignItems={isSentByMe ? "flex-end" : "flex-start"}
+              mb={3}
+              px={2}
+              onMouseEnter={() => setHoveredMessage(m._id)}
+              onMouseLeave={() => setHoveredMessage(null)}
+              transition="background-color 0.3s ease"
+            >
+              <HStack 
+                spacing={2} 
+                alignItems="flex-end"
+                flexDirection={isSentByMe ? "row-reverse" : "row"}
+                w="100%"
+                justifyContent={isSentByMe ? "flex-end" : "flex-start"}
               >
-                {/* Reply Preview */}
-                {m.replyTo && (
-                  <Box
-                    bg={m.sender._id === user._id ? "#9ac9e3" : "#9de8c7"}
-                    p={2}
-                    borderRadius="md"
-                    mb={1}
-                    fontSize="xs"
-                    borderLeft="2px solid"
-                    borderLeftColor={m.sender._id === user._id ? "#4A90E2" : "#4CAF50"}
-                  >
-                    <Text fontWeight="bold">{m.replyTo.sender?.name || "User"}</Text>
-                    <Text noOfLines={1}>{m.replyTo.content}</Text>
-                  </Box>
-                )}
+                {/* Avatar for received messages */}
+                {!isSentByMe && (
+                  isSameSender(messages, m, i, user._id) ||
+                  isLastMessage(messages, i, user._id)
+                ) ? (
+                  <Tooltip label={m.sender.name} placement="bottom-start" hasArrow>
+                    <Avatar
+                      size="sm"
+                      cursor="pointer"
+                      name={m.sender.name}
+                      src={m.sender.pic}
+                    />
+                  </Tooltip>
+                ) : !isSentByMe ? (
+                  <Box w="32px" /> // Spacer for alignment
+                ) : null}
 
-                {/* Message Content */}
-                <Box
-                  bg={m.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"}
-                  borderRadius="20px"
-                  p="10px 15px"
+                <VStack
+                  align={isSentByMe ? "flex-end" : "flex-start"}
+                  spacing={1}
+                  maxW="75%"
                   position="relative"
                 >
-                  {m.content && <Text>{m.content}</Text>}
-
-                  {/* File Attachments */}
-                  {m.files && m.files.length > 0 && (
-                    <VStack align="start" mt={m.content ? 2 : 0} spacing={2}>
-                      {m.files.map((file, index) => (
-                        <Box key={index}>
-                          {file.mimetype.startsWith('image/') ? (
-                            <Image
-                              src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${file.path}`}
-                              alt={file.originalName}
-                              maxH="200px"
-                              borderRadius="md"
-                              cursor="pointer"
-                              onClick={() => window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${file.path}`, '_blank')}
-                            />
-                          ) : (
-                            <Link
-                              href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${file.path}`}
-                              isExternal
-                              display="flex"
-                              alignItems="center"
-                              gap={2}
-                            >
-                              <Text fontSize="lg">
-                                {file.mimetype.startsWith('video/') ? '🎥' :
-                                 file.mimetype.startsWith('audio/') ? '🎵' :
-                                 file.mimetype.includes('pdf') ? '📄' : '📎'}
-                              </Text>
-                              <Box>
-                                <Text fontSize="sm">{file.originalName}</Text>
-                                <Text fontSize="xs" color="gray.600">
-                                  {(file.size / 1024).toFixed(1)} KB
-                                </Text>
-                              </Box>
-                            </Link>
-                          )}
-                        </Box>
-                      ))}
-                    </VStack>
-                  )}
-
-                  {/* Edited indicator */}
-                  {m.isEdited && (
-                    <Text fontSize="xs" color="gray.500" mt={1}>
-                      (edited)
+                  {/* Sender Name (only for received messages in group chats) */}
+                  {!isSentByMe && (
+                    <Text fontSize="xs" color="gray.600" fontWeight="500" ml={2}>
+                      {m.sender.name}
                     </Text>
                   )}
 
-                  {/* Message Actions on Hover */}
-                  {hoveredMessage === m._id && (
-                    <HStack
-                      position="absolute"
-                      top="-25px"
-                      right="0"
-                      bg="white"
-                      boxShadow="md"
+                  {/* Reply Preview - Shows which message this is replying to */}
+                  {m.replyTo && (
+                    <Box
+                      bg={isSentByMe ? "rgba(135, 206, 235, 0.3)" : "rgba(144, 238, 144, 0.3)"}
+                      p={2}
                       borderRadius="md"
-                      p={1}
-                      spacing={0}
+                      mb={1}
+                      fontSize="xs"
+                      borderLeft="3px solid"
+                      borderLeftColor={isSentByMe ? "#4A90E2" : "#4CAF50"}
+                      cursor="pointer"
+                      onClick={() => m.replyTo._id && scrollToMessage(m.replyTo._id)}
+                      _hover={{ opacity: 0.8 }}
+                      maxW="100%"
                     >
-                      <IconButton
-                        size="xs"
-                        icon={<Text>↩</Text>}
-                        onClick={() => onReply && onReply(m)}
-                        aria-label="Reply"
-                        colorScheme="blue"
-                        variant="ghost"
-                        _hover={{ bg: "blue.100" }}
-                      />
+                      <HStack spacing={2}>
+                        <Text fontSize="10px" color="gray.500">↩</Text>
+                        <VStack align="start" spacing={0}>
+                          <Text fontWeight="bold" color={isSentByMe ? "#2B6CB0" : "#2F855A"} fontSize="xs">
+                            {m.replyTo.sender?.name || "User"}
+                          </Text>
+                          <Text noOfLines={2} color="gray.700" fontSize="xs">
+                            {m.replyTo.content || "[Attachment]"}
+                          </Text>
+                        </VStack>
+                      </HStack>
+                    </Box>
+                  )}
 
-                      <IconButton
-                        size="xs"
-                        icon={<CopyIcon />}
-                        onClick={() => copyToClipboard(m.content)}
-                        aria-label="Copy"
-                        colorScheme="gray"
-                        variant="ghost"
-                        _hover={{ bg: "gray.100" }}
-                      />
+                  {/* Message Bubble */}
+                  <Box
+                    bg={isSentByMe ? "#BEE3F8" : "#B9F5D0"}
+                    borderRadius="lg"
+                    p={3}
+                    position="relative"
+                    boxShadow="sm"
+                    borderBottomRightRadius={isSentByMe ? "2px" : "lg"}
+                    borderBottomLeftRadius={isSentByMe ? "lg" : "2px"}
+                  >
+                    {/* Message Content */}
+                    {m.content && (
+                      <Text 
+                        color="gray.800" 
+                        wordBreak="break-word" 
+                        whiteSpace="pre-wrap"
+                      >
+                        {m.content}
+                      </Text>
+                    )}
 
-                      <Menu>
-                        <MenuButton
-                          as={IconButton}
+                    {/* File Attachments */}
+                    {m.files && m.files.length > 0 && (
+                      <VStack align="start" mt={m.content ? 2 : 0} spacing={2}>
+                        {m.files.map((file, index) => (
+                          <Box key={index} w="100%">
+                            {file.mimetype.startsWith('image/') ? (
+                              <Image
+                                src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${file.path}`}
+                                alt={file.originalName}
+                                maxH="200px"
+                                maxW="100%"
+                                borderRadius="md"
+                                cursor="pointer"
+                                onClick={() => window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${file.path}`, '_blank')}
+                              />
+                            ) : (
+                              <Link
+                                href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${file.path}`}
+                                isExternal
+                                display="flex"
+                                alignItems="center"
+                                gap={2}
+                                p={2}
+                                bg="whiteAlpha.500"
+                                borderRadius="md"
+                                _hover={{ bg: "whiteAlpha.700" }}
+                              >
+                                <Text fontSize="2xl">
+                                  {file.mimetype.startsWith('video/') ? '🎥' :
+                                   file.mimetype.startsWith('audio/') ? '🎵' :
+                                   file.mimetype.includes('pdf') ? '📄' : '📎'}
+                                </Text>
+                                <Box flex={1}>
+                                  <Text fontSize="sm" fontWeight="500">{file.originalName}</Text>
+                                  <Text fontSize="xs" color="gray.600">
+                                    {(file.size / 1024).toFixed(1)} KB
+                                  </Text>
+                                </Box>
+                              </Link>
+                            )}
+                          </Box>
+                        ))}
+                      </VStack>
+                    )}
+
+                    {/* Message Actions on Hover */}
+                    {hoveredMessage === m._id && (
+                      <HStack
+                        position="absolute"
+                        top="-30px"
+                        right={isSentByMe ? "0" : "auto"}
+                        left={isSentByMe ? "auto" : "0"}
+                        bg="white"
+                        boxShadow="lg"
+                        borderRadius="full"
+                        p={1}
+                        spacing={0}
+                        zIndex={10}
+                      >
+                        <IconButton
                           size="xs"
-                          icon={<Text>😀</Text>}
-                          aria-label="React"
-                          colorScheme="yellow"
+                          icon={<Text fontSize="md">↩</Text>}
+                          onClick={() => onReply && onReply(m)}
+                          aria-label="Reply"
+                          colorScheme="blue"
                           variant="ghost"
-                          _hover={{ bg: "yellow.100" }}
+                          borderRadius="full"
                         />
-                        <MenuList>
-                          <MenuItem onClick={() => addReaction(m._id, "👍")}>👍 Like</MenuItem>
-                          <MenuItem onClick={() => addReaction(m._id, "❤️")}>❤️ Love</MenuItem>
-                          <MenuItem onClick={() => addReaction(m._id, "😂")}>😂 Laugh</MenuItem>
-                          <MenuItem onClick={() => addReaction(m._id, "😮")}>😮 Wow</MenuItem>
-                          <MenuItem onClick={() => addReaction(m._id, "😢")}>😢 Sad</MenuItem>
-                          <MenuItem onClick={() => addReaction(m._id, "😡")}>😡 Angry</MenuItem>
-                        </MenuList>
-                      </Menu>
 
-                      {m.sender._id === user._id && (
-                        <>
-                          <IconButton
-                            size="xs"
-                            icon={<EditIcon />}
-                            onClick={() => onEdit && onEdit(m)}
-                            aria-label="Edit"
-                            colorScheme="green"
-                            variant="ghost"
-                            _hover={{ bg: "green.100" }}
-                          />
+                        <IconButton
+                          size="xs"
+                          icon={<CopyIcon />}
+                          onClick={() => copyToClipboard(m.content)}
+                          aria-label="Copy"
+                          colorScheme="gray"
+                          variant="ghost"
+                          borderRadius="full"
+                        />
 
-                          <IconButton
+                        <Menu>
+                          <MenuButton
+                            as={IconButton}
                             size="xs"
-                            icon={<DeleteIcon />}
-                            onClick={() => deleteMessage(m._id)}
-                            aria-label="Delete"
-                            colorScheme="red"
+                            icon={<Text fontSize="md">😀</Text>}
+                            aria-label="React"
+                            colorScheme="yellow"
                             variant="ghost"
-                            _hover={{ bg: "red.100" }}
+                            borderRadius="full"
                           />
-                        </>
-                      )}
+                          <MenuList minW="150px">
+                            <MenuItem onClick={() => addReaction(m._id, "👍")}>👍 Like</MenuItem>
+                            <MenuItem onClick={() => addReaction(m._id, "❤️")}>❤️ Love</MenuItem>
+                            <MenuItem onClick={() => addReaction(m._id, "😂")}>😂 Laugh</MenuItem>
+                            <MenuItem onClick={() => addReaction(m._id, "😮")}>😮 Wow</MenuItem>
+                            <MenuItem onClick={() => addReaction(m._id, "😢")}>😢 Sad</MenuItem>
+                            <MenuItem onClick={() => addReaction(m._id, "😡")}>😡 Angry</MenuItem>
+                          </MenuList>
+                        </Menu>
+
+                        {m.sender._id === user._id && (
+                          <>
+                            <IconButton
+                              size="xs"
+                              icon={<EditIcon />}
+                              onClick={() => onEdit && onEdit(m)}
+                              aria-label="Edit"
+                              colorScheme="green"
+                              variant="ghost"
+                              borderRadius="full"
+                            />
+
+                            <IconButton
+                              size="xs"
+                              icon={<DeleteIcon />}
+                              onClick={() => deleteMessage(m._id)}
+                              aria-label="Delete"
+                              colorScheme="red"
+                              variant="ghost"
+                              borderRadius="full"
+                            />
+                          </>
+                        )}
+                      </HStack>
+                    )}
+
+                    {/* Edited Badge */}
+                    {m.isEdited && (
+                      <Text fontSize="10px" color="gray.500" mt={1} fontStyle="italic">
+                        edited
+                      </Text>
+                    )}
+                  </Box>
+
+                  {/* Reactions */}
+                  {m.reactions && m.reactions.length > 0 && (
+                    <HStack spacing={1} mt={1}>
+                      {Object.entries(
+                        m.reactions.reduce((acc, reaction) => {
+                          acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
+                          return acc;
+                        }, {})
+                      ).map(([emoji, count]) => (
+                        <Badge
+                          key={emoji}
+                          cursor="pointer"
+                          onClick={() => addReaction(m._id, emoji)}
+                          colorScheme="gray"
+                          fontSize="xs"
+                          borderRadius="full"
+                          px={2}
+                        >
+                          {emoji} {count}
+                        </Badge>
+                      ))}
                     </HStack>
                   )}
-                </Box>
 
-                {/* Reactions */}
-                {m.reactions && m.reactions.length > 0 && (
-                  <HStack mt={1} spacing={1}>
-                    {Object.entries(
-                      m.reactions.reduce((acc, reaction) => {
-                        acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
-                        return acc;
-                      }, {})
-                    ).map(([emoji, count]) => (
-                      <Badge
-                        key={emoji}
-                        cursor="pointer"
-                        onClick={() => addReaction(m._id, emoji)}
-                        colorScheme="gray"
-                      >
-                        {emoji} {count}
-                      </Badge>
-                    ))}
+                  {/* Timestamp and Status */}
+                  <HStack spacing={1} fontSize="10px" color="gray.500" mt={1}>
+                    <Text>{formatTime(m.createdAt)}</Text>
+                    {getMessageStatus(m)}
                   </HStack>
-                )}
-
-                {/* Timestamp and Status */}
-                <HStack mt={1} spacing={1} fontSize="10px" color="gray.500">
-                  <Text>{formatTime(m.createdAt)}</Text>
-                  {getMessageStatus(m)}
-                </HStack>
-              </Box>
+                </VStack>
+              </HStack>
             </Box>
-          </Box>
-        ))}
+          );
+        })}
     </ScrollableFeed>
   );
 };
