@@ -81,7 +81,27 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
   };
 
   return (
-    <ScrollableFeed>
+    <Box 
+      height="100%" 
+      overflowY="auto" 
+      css={{
+        '&::-webkit-scrollbar': {
+          width: '6px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: '#f1f1f1',
+          borderRadius: '10px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: '#888',
+          borderRadius: '10px',
+        },
+        '&::-webkit-scrollbar-thumb:hover': {
+          background: '#555',
+        },
+        scrollBehavior: 'smooth',
+      }}
+    >
       {messages &&
         messages.map((m, i) => (
           <div 
@@ -146,34 +166,52 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
                 {hoveredMessage === m._id && (
                   <HStack
                     position="absolute"
-                    top="-30px"
+                    top="-35px"
                     right={m.sender._id === user._id ? "0" : "auto"}
                     left={m.sender._id === user._id ? "auto" : "0"}
                     bg="white"
-                    borderRadius="md"
-                    boxShadow="md"
-                    p={1}
+                    borderRadius="lg"
+                    boxShadow="lg"
+                    p={2}
                     spacing={1}
+                    opacity={0.95}
+                    transform="translateY(0)"
+                    transition="all 0.2s ease-in-out"
+                    zIndex={10}
                   >
                     <Tooltip label="Reply" placement="top">
                       <IconButton
-                        size="xs"
-                        icon={<Text>↩</Text>}
+                        size="sm"
+                        icon={<Text fontSize="sm">↩</Text>}
                         onClick={() => onReply && onReply(m)}
                         aria-label="Reply"
+                        colorScheme="blue"
+                        variant="ghost"
+                        _hover={{ bg: "blue.100" }}
                       />
                     </Tooltip>
                     <Tooltip label="Copy" placement="top">
                       <IconButton
-                        size="xs"
+                        size="sm"
                         icon={<CopyIcon />}
                         onClick={() => copyToClipboard(m.content)}
                         aria-label="Copy"
+                        colorScheme="gray"
+                        variant="ghost"
+                        _hover={{ bg: "gray.100" }}
                       />
                     </Tooltip>
                     <Tooltip label="React" placement="top">
                       <Menu>
-                        <MenuButton as={IconButton} size="xs" icon={<Text>😀</Text>} aria-label="React" />
+                        <MenuButton 
+                          as={IconButton} 
+                          size="sm" 
+                          icon={<Text fontSize="sm">😀</Text>} 
+                          aria-label="React"
+                          colorScheme="yellow"
+                          variant="ghost"
+                          _hover={{ bg: "yellow.100" }}
+                        />
                         <MenuList>
                           <MenuItem onClick={() => addReaction(m._id, "👍")}>👍 Like</MenuItem>
                           <MenuItem onClick={() => addReaction(m._id, "❤️")}>❤️ Love</MenuItem>
@@ -188,19 +226,24 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
                       <>
                         <Tooltip label="Edit" placement="top">
                           <IconButton
-                            size="xs"
+                            size="sm"
                             icon={<EditIcon />}
                             onClick={() => onEdit && onEdit(m)}
                             aria-label="Edit"
+                            colorScheme="green"
+                            variant="ghost"
+                            _hover={{ bg: "green.100" }}
                           />
                         </Tooltip>
                         <Tooltip label="Delete" placement="top">
                           <IconButton
-                            size="xs"
+                            size="sm"
                             icon={<DeleteIcon />}
                             onClick={() => deleteMessage(m._id)}
                             aria-label="Delete"
                             colorScheme="red"
+                            variant="ghost"
+                            _hover={{ bg: "red.100" }}
                           />
                         </Tooltip>
                       </>
@@ -237,7 +280,7 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
             </VStack>
           </div>
         ))}
-    </ScrollableFeed>
+    </Box>
   );
 };
 

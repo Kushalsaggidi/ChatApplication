@@ -27,6 +27,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [istyping, setIsTyping] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const toast = useToast();
 
   const defaultOptions = {
@@ -87,25 +88,43 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         
         const messageContent = newMessage;
         setNewMessage("");
-        setReplyingTo(null);
-        setEditingMessage(null);
         
         const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
-        const { data } = await axios.post(
-          `${API_URL}/api/message`,
-          {
-            content: messageContent,
-            chatId: selectedChat,
-            replyTo: replyingTo?._id || null,
-          },
-          config
-        );
-        socket.emit("new message", data);
-        setMessages([...messages, data]);
+        
+        // If editing a message
+        if (editingMessage) {
+          const { data } = await axios.put(
+            `${API_URL}/api/message/${editingMessage._id}`,
+            { content: messageContent },
+            config
+          );
+          
+          // Update the message in the messages array
+          setMessages(messages.map(msg => 
+            msg._id === editingMessage._id ? data : msg
+          ));
+          setEditingMessage(null);
+        } else {
+          // Send new message
+          const { data } = await axios.post(
+            `${API_URL}/api/message`,
+            {
+              content: messageContent,
+              chatId: selectedChat,
+              replyTo: replyingTo?._id || null,
+            },
+            config
+          );
+          socket.emit("new message", data);
+          setMessages([...messages, data]);
+        }
+        
+        setReplyingTo(null);
       } catch (error) {
+        console.error("Error sending/editing message:", error);
         toast({
           title: "Error Occurred!",
-          description: "Failed to send the Message",
+          description: error.response?.data?.message || "Failed to send the Message",
           status: "error",
           duration: 5000,
           isClosable: true,
@@ -148,6 +167,31 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     selectedChatCompare = selectedChat;
     // eslint-disable-next-line
   }, [selectedChat]);
+
+  // Auto scroll to bottom when new messages arrive
+  useEffect(() => {
+    const messagesContainer = document.querySelector('.messages');
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  }, [messages]);
+
+  // Handle scroll events to show/hide scroll button
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setShowScrollButton(!isNearBottom);
+  };
+
+  const scrollToBottom = () => {
+    const messagesContainer = document.querySelector('.messages');
+    if (messagesContainer) {
+      messagesContainer.scrollTo({
+        top: messagesContainer.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   useEffect(() => {
     socket.on("message recieved", (newMessageRecieved) => {
@@ -253,13 +297,53 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 margin="auto"
               />
             ) : (
-              <div className="messages" style={{ flex: 1, overflowY: "auto" }}>
+              <Box 
+                flex={1} 
+                overflowY="auto" 
+                position="relative"
+                onScroll={handleScroll}
+                css={{
+                  '&::-webkit-scrollbar': {
+                    width: '6px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    background: '#f1f1f1',
+                    borderRadius: '10px',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    background: '#888',
+                    borderRadius: '10px',
+                  },
+                  '&::-webkit-scrollbar-thumb:hover': {
+                    background: '#555',
+                  },
+                  scrollBehavior: 'smooth',
+                }}
+              >
                 <ScrollableChat 
                   messages={messages} 
                   onReply={handleReply}
                   onEdit={handleEdit}
                 />
-              </div>
+                
+                {/* Scroll to bottom button */}
+                {showScrollButton && (
+                  <IconButton
+                    position="absolute"
+                    bottom="20px"
+                    right="20px"
+                    size="md"
+                    colorScheme="blue"
+                    borderRadius="full"
+                    boxShadow="lg"
+                    onClick={scrollToBottom}
+                    aria-label="Scroll to bottom"
+                    icon={<Text fontSize="lg">↓</Text>}
+                    _hover={{ transform: "scale(1.1)" }}
+                    transition="all 0.2s ease"
+                  />
+                )}
+              </Box>
             )}
           </Box>
 
@@ -303,16 +387,24 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 mb={2}
                 borderLeft="3px solid"
                 borderLeftColor="yellow.400"
+                animation="pulse 2s infinite"
               >
                 <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Text fontSize="sm" fontWeight="bold" color="yellow.600">
-                    Editing message
-                  </Text>
+                  <HStack>
+                    <Text fontSize="sm" fontWeight="bold" color="yellow.600">
+                      ✏️ Editing message
+                    </Text>
+                    <Text fontSize="xs" color="yellow.500">
+                      Press Enter to save, or click × to cancel
+                    </Text>
+                  </HStack>
                   <IconButton
                     size="sm"
                     icon={<Text>×</Text>}
                     onClick={cancelReply}
                     aria-label="Cancel edit"
+                    colorScheme="yellow"
+                    variant="ghost"
                   />
                 </Box>
               </Box>
