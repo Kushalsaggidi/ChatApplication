@@ -46,21 +46,23 @@ const UpdateGroupChatModal = ({ fetchMessages, fetchAgain, setFetchAgain }) => {
           Authorization: `Bearer ${user.token}`,
         },
       };
-      const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/api/user?search=${search}`, config);
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      const { data } = await axios.get(`${API_URL}/api/user?search=${search}`, config);
 
       console.log(data);
       setLoading(false);
       setSearchResult(data);
     } catch (error) {
+      console.error("Search error:", error);
+      setLoading(false);
       toast({
-        title: "Error Occured!",
-        description: "Failed to Load the Search Results",
+        title: "Error Occurred!",
+        description: error.response?.data?.message || "Failed to Load the Search Results",
         status: "error",
         duration: 5000,
         isClosable: true,
         position: "bottom-left",
       });
-      setLoading(false);
     }
   };
 

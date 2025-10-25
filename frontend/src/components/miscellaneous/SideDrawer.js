@@ -68,6 +68,8 @@ function SideDrawer() {
 
     try {
       setLoading(true);
+      console.log("Searching for:", search);
+      console.log("User token:", user.token ? "Present" : "Missing");
 
       const config = {
         headers: {
@@ -75,15 +77,20 @@ function SideDrawer() {
         },
       };
 
-      const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/api/user?search=${search}`, config);
-
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      console.log("API URL:", API_URL);
+      
+      const { data } = await axios.get(`${API_URL}/api/user?search=${search}`, config);
+      console.log("Search results:", data);
 
       setLoading(false);
       setSearchResult(data);
     } catch (error) {
+      console.error("Search error:", error);
+      setLoading(false);
       toast({
-        title: "Error Occured!",
-        description: "Failed to Load the Search Results",
+        title: "Error Occurred!",
+        description: error.response?.data?.message || "Failed to Load the Search Results",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -104,7 +111,8 @@ function SideDrawer() {
         },
       };
 // ✅ CORRECT - Using environment variable
-      const { data } = await axios.post(`${process.env.REACT_APP_API_URL}/api/chat`, { userId }, config);
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      const { data } = await axios.post(`${API_URL}/api/chat`, { userId }, config);
 
       if (!chats.find((c) => c._id === data._id)) setChats([data, ...chats]);
       setSelectedChat(data);
@@ -125,18 +133,19 @@ function SideDrawer() {
   return (
     <>
       <Box
-        d="flex"
+        display="flex"
         justifyContent="space-between"
         alignItems="center"
         bg="white"
         w="100%"
         p="5px 10px 5px 10px"
         borderWidth="5px"
+        boxShadow="sm"
       >
         <Tooltip label="Search Users to chat" hasArrow placement="bottom-end">
           <Button variant="ghost" onClick={onOpen}>
             <i className="fas fa-search"></i>
-            <Text d={{ base: "none", md: "flex" }} px={4}>
+            <Text display={{ base: "none", md: "flex" }} px={4}>
               Search User
             </Text>
           </Button>
@@ -191,27 +200,40 @@ function SideDrawer() {
         <DrawerContent>
           <DrawerHeader borderBottomWidth="1px">Search Users</DrawerHeader>
           <DrawerBody>
-            <Box d="flex" pb={2}>
+            <Box display="flex" pb={2}>
               <Input
                 placeholder="Search by name or email"
                 mr={2}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
               />
-              <Button onClick={handleSearch}>Go</Button>
+              <Button onClick={handleSearch} colorScheme="blue">Go</Button>
             </Box>
             {loading ? (
               <ChatLoading />
-            ) : (
-              searchResult?.map((user) => (
+            ) : searchResult?.length > 0 ? (
+              searchResult.map((user) => (
                 <UserListItem
                   key={user._id}
                   user={user}
                   handleFunction={() => accessChat(user._id)}
                 />
               ))
+            ) : search ? (
+              <Text textAlign="center" color="gray.500" mt={4}>
+                No users found matching "{search}"
+              </Text>
+            ) : (
+              <Text textAlign="center" color="gray.500" mt={4}>
+                Enter a name or email to search for users
+              </Text>
             )}
-            {loadingChat && <Spinner ml="auto" d="flex" />}
+            {loadingChat && <Spinner ml="auto" display="flex" />}
           </DrawerBody>
         </DrawerContent>
       </Drawer>
