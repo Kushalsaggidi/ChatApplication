@@ -14,6 +14,7 @@ import animationData from "../animations/typing.json";
 import io from "socket.io-client";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import { ChatState } from "../Context/ChatProvider";
+
 const ENDPOINT = process.env.REACT_APP_API_URL || "http://localhost:5000";
 var socket, selectedChatCompare;
 
@@ -34,6 +35,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       preserveAspectRatio: "xMidYMid slice",
     },
   };
+
   const { selectedChat, setSelectedChat, user, notification, setNotification } =
     ChatState();
 
@@ -123,7 +125,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   useEffect(() => {
     socket.on("message recieved", (newMessageRecieved) => {
       if (
-        !selectedChatCompare || // if chat is not selected or doesn't match current chat
+        !selectedChatCompare ||
         selectedChatCompare._id !== newMessageRecieved.chat._id
       ) {
         if (!notification.includes(newMessageRecieved)) {
@@ -160,16 +162,22 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   return (
     <>
       {selectedChat ? (
-        <>
+        <Box
+          d="flex"
+          flexDir="column"
+          h="100%"
+          w="100%"
+        >
+          {/* Header */}
           <Text
             fontSize={{ base: "28px", md: "30px" }}
             pb={3}
             px={2}
-            w="100%"
             fontFamily="Work sans"
             d="flex"
             justifyContent={{ base: "space-between" }}
             alignItems="center"
+            flexShrink={0}
           >
             <IconButton
               d={{ base: "flex", md: "none" }}
@@ -195,16 +203,18 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 </>
               ))}
           </Text>
+
+          {/* Messages Container */}
           <Box
             d="flex"
             flexDir="column"
             justifyContent="flex-end"
             p={3}
             bg="#E8E8E8"
-            w="100%"
-            h="100%"
+            flex={1}
             borderRadius="lg"
             overflowY="hidden"
+            minH={0}
           >
             {loading ? (
               <Spinner
@@ -215,23 +225,19 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 margin="auto"
               />
             ) : (
-              <div className="messages">
+              <div className="messages" style={{ flex: 1, overflowY: "auto" }}>
                 <ScrollableChat messages={messages} />
               </div>
             )}
+          </Box>
 
-            <FormControl
-              onKeyDown={sendMessage}
-              id="first-name"
-              isRequired
-              mt={3}
-            >
-              {istyping ? (
-                <div style={{ marginBottom: 15, marginLeft: 0 }}>
+          {/* Input Container */}
+          <Box p={3} bg="white" flexShrink={0}>
+            <FormControl id="message-input" isRequired>
+              {istyping && (
+                <Box mb={2} ml={0}>
                   <Spinner size="sm" color="blue.500" />
-                </div>
-              ) : (
-                <></>
+                </Box>
               )}
 
               <Input
@@ -240,12 +246,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 placeholder="Enter a message.."
                 value={newMessage}
                 onChange={typingHandler}
+                onKeyDown={sendMessage}
               />
             </FormControl>
           </Box>
-        </>
+        </Box>
       ) : (
-        // to get socket.io on same page
         <Box d="flex" alignItems="center" justifyContent="center" h="100%">
           <Text fontSize="3xl" pb={3} fontFamily="Work sans">
             Click on a user to start chatting
