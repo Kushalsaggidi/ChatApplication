@@ -6,40 +6,41 @@ const chatRoutes = require("./routes/chatRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const path = require("path");
-const cors = require("cors"); // 1. ADD CORS
+const cors = require("cors");
 
 require('dotenv').config();
 connectDB();
-const MONGO_URI = process.env.MONGO_URI;
 
+const MONGO_URI = process.env.MONGO_URI;
 console.log("Loaded PORT:", process.env.PORT);
 console.log("Loaded MONGO_URI:", MONGO_URI);
 
 const app = express();
 
-app.use(express.json()); // to accept json data
+// Middleware
+app.use(express.json());
 
-// 2. ENABLE CORS for your deployed frontend
+// CORS Configuration - PRODUCTION READY
 app.use(cors({
   origin: [
     "http://localhost:3000",
     "https://chat-application-7f7f.vercel.app"
   ],
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// 3. API ROUTES
+// API Routes
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
 
-// --------------------------deployment------------------------------
-
+// Deployment - Serve Frontend in Production
 const __dirname1 = path.resolve();
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname1, "/frontend/build")));
-
   app.get("*", (req, res) =>
     res.sendFile(path.resolve(__dirname1, "frontend", "build", "index.html"))
   );
@@ -49,20 +50,17 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// --------------------------deployment------------------------------
-
-// Error Handling middlewares
+// Error Handling Middleware
 app.use(notFound);
 app.use(errorHandler);
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000;
 
-const server = app.listen(
-  PORT,
-  console.log(`Server running on PORT ${PORT}...`)
-);
+const server = app.listen(PORT, () => {
+  console.log(`Server running on PORT ${PORT}...`);
+});
 
-// 4. SOCKET.IO WITH CORRECT CORS
+// Socket.IO Configuration - PRODUCTION READY
 const io = require("socket.io")(server, {
   pingTimeout: 60000,
   cors: {
@@ -70,12 +68,15 @@ const io = require("socket.io")(server, {
       "http://localhost:3000",
       "https://chat-application-7f7f.vercel.app"
     ],
-    credentials: true
+    credentials: true,
+    methods: ["GET", "POST"]
   }
 });
 
+// Socket.IO Event Handlers
 io.on("connection", (socket) => {
   console.log("Connected to socket.io");
+
   socket.on("setup", (userData) => {
     socket.join(userData._id);
     socket.emit("connected");
@@ -90,8 +91,11 @@ io.on("connection", (socket) => {
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
   socket.on("new message", (newMessageRecieved) => {
-    var chat = newMessageRecieved.chat;
-    if (!chat.users) return console.log("chat.users not defined");
+    const chat = newMessageRecieved.chat;
+    if (!chat.users) {
+      console.log("chat.users not defined");
+      return;
+    }
 
     chat.users.forEach((user) => {
       if (user._id == newMessageRecieved.sender._id) return;
@@ -99,8 +103,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.off("setup", () => {
+  socket.on("disconnect", () => {
     console.log("USER DISCONNECTED");
-    socket.leave(userData._id);
   });
 });
