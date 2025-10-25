@@ -1,6 +1,6 @@
-import { Avatar, Box, Text, IconButton, Menu, MenuButton, MenuList, MenuItem, useToast, HStack, VStack, Button } from "@chakra-ui/react";
+import { Avatar, Box, Text, IconButton, Menu, MenuButton, MenuList, MenuItem, useToast, HStack, VStack, Button, Image, Link, Badge } from "@chakra-ui/react";
 import { Tooltip } from "@chakra-ui/react";
-import { ChevronDownIcon, CopyIcon, EditIcon, DeleteIcon } from "@chakra-ui/icons";
+import { ChevronDownIcon, CopyIcon, EditIcon, DeleteIcon, DownloadIcon } from "@chakra-ui/icons";
 import ScrollableFeed from "react-scrollable-feed";
 import {
   isLastMessage,
@@ -155,7 +155,58 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
                   transition: "all 0.2s ease",
                 }}
               >
-                <Text>{m.content}</Text>
+                {/* Message Content */}
+                {m.content && <Text>{m.content}</Text>}
+                
+                {/* File Attachments */}
+                {m.attachments && m.attachments.length > 0 && (
+                  <VStack spacing={2} align="start" mt={2}>
+                    {m.attachments.map((attachment, index) => (
+                      <Box key={index} maxW="200px">
+                        {attachment.fileType.startsWith('image/') ? (
+                          <Image
+                            src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${attachment.fileUrl}`}
+                            alt={attachment.fileName}
+                            borderRadius="md"
+                            maxH="200px"
+                            objectFit="cover"
+                            cursor="pointer"
+                            onClick={() => window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${attachment.fileUrl}`, '_blank')}
+                          />
+                        ) : (
+                          <Box
+                            p={3}
+                            bg="gray.100"
+                            borderRadius="md"
+                            border="1px solid"
+                            borderColor="gray.200"
+                            cursor="pointer"
+                            _hover={{ bg: "gray.200" }}
+                            onClick={() => window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${attachment.fileUrl}`, '_blank')}
+                          >
+                            <HStack spacing={2}>
+                              <Text fontSize="lg">
+                                {attachment.fileType.startsWith('video/') ? '🎥' :
+                                 attachment.fileType.startsWith('audio/') ? '🎵' :
+                                 attachment.fileType.includes('pdf') ? '📄' :
+                                 attachment.fileType.includes('zip') ? '📦' : '📎'}
+                              </Text>
+                              <VStack align="start" spacing={0}>
+                                <Text fontSize="sm" fontWeight="medium" noOfLines={1}>
+                                  {attachment.fileName}
+                                </Text>
+                                <Text fontSize="xs" color="gray.500">
+                                  {(attachment.fileSize / 1024).toFixed(1)} KB
+                                </Text>
+                              </VStack>
+                            </HStack>
+                          </Box>
+                        )}
+                      </Box>
+                    ))}
+                  </VStack>
+                )}
+                
                 {m.isEdited && (
                   <Text fontSize="xs" color="gray.500" fontStyle="italic">
                     (edited)

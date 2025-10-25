@@ -1,8 +1,10 @@
 import { FormControl } from "@chakra-ui/react";
 import { Input } from "@chakra-ui/react";
-import { Box, Text, VStack, HStack } from "@chakra-ui/react";
+import { Box, Text, VStack } from "@chakra-ui/react";
+import { HStack, Button } from "@chakra-ui/react";
 import "./styles.css";
 import { IconButton, Spinner, useToast } from "@chakra-ui/react";
+import FileUpload from "./FileUpload";
 import { getSender, getSenderFull } from "../config/ChatLogics";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -28,6 +30,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const toast = useToast();
 
   const defaultOptions = {
@@ -76,26 +81,25 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   };
 
   const sendMessage = async (event) => {
-    if (event.key === "Enter" && newMessage) {
+    if (event.key === "Enter" && (newMessage || selectedFiles.length > 0)) {
       socket.emit("stop typing", selectedChat._id);
+      setUploading(true);
+      
       try {
-        const config = {
-          headers: {
-            "Content-type": "application/json",
-            Authorization: `Bearer ${user.token}`,
-          },
-        };
-        
-        const messageContent = newMessage;
-        setNewMessage("");
-        
         const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
         
         // If editing a message
         if (editingMessage) {
+          const config = {
+            headers: {
+              "Content-type": "application/json",
+              Authorization: `Bearer ${user.token}`,
+            },
+          };
+          
           const { data } = await axios.put(
             `${API_URL}/api/message/${editingMessage._id}`,
-            { content: messageContent },
+            { content: newMessage },
             config
           );
           
@@ -105,23 +109,46 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           ));
           setEditingMessage(null);
         } else {
-          // Send new message
+          // Send new message with files
+          const formData = new FormData();
+          formData.append('content', newMessage);
+          formData.append('chatId', selectedChat._id);
+          if (replyingTo) {
+            formData.append('replyTo', replyingTo._id);
+          }
+          
+          // Add files to form data
+          selectedFiles.forEach((file, index) => {
+            formData.append('files', file);
+          });
+          
+          const config = {
+            headers: {
+              Authorization: `Bearer ${user.token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          };
+          
           const { data } = await axios.post(
             `${API_URL}/api/message`,
-            {
-              content: messageContent,
-              chatId: selectedChat,
-              replyTo: replyingTo?._id || null,
-            },
+            formData,
             config
           );
+          
           socket.emit("new message", data);
           setMessages([...messages, data]);
         }
         
+        // Reset form
+        setNewMessage("");
+        setSelectedFiles([]);
+        setShowFileUpload(false);
         setReplyingTo(null);
+        setUploading(false);
+        
       } catch (error) {
         console.error("Error sending/editing message:", error);
+        setUploading(false);
         toast({
           title: "Error Occurred!",
           description: error.response?.data?.message || "Failed to send the Message",
@@ -149,6 +176,42 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     setReplyingTo(null);
     setEditingMessage(null);
     setNewMessage("");
+    setSelectedFiles([]);
+    setShowFileUpload(false);
+  };
+
+  const handleFilesSelect = (files) => {
+    setSelectedFiles(prev => [...prev, ...files]);
+  };
+
+  const handleRemoveFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData.items;
+    const files = [];
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          files.push(file);
+        }
+      }
+    }
+    
+    if (files.length > 0) {
+      handleFilesSelect(files);
+      toast({
+        title: "Images pasted",
+        description: `${files.length} image(s) ready to send`,
+        status: "success",
+        duration: 2000,
+        isClosable: true,
+      });
+    }
   };
 
   useEffect(() => {
@@ -410,6 +473,17 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               </Box>
             )}
 
+            {/* File Upload Area */}
+            {showFileUpload && (
+              <Box mb={3}>
+                <FileUpload
+                  onFilesSelect={handleFilesSelect}
+                  onRemoveFile={handleRemoveFile}
+                  selectedFiles={selectedFiles}
+                />
+              </Box>
+            )}
+
             <FormControl id="message-input" isRequired>
               {istyping && (
                 <Box mb={2} ml={0}>
@@ -417,20 +491,44 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 </Box>
               )}
 
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder={
-                  editingMessage 
-                    ? "Edit your message..." 
-                    : replyingTo 
-                    ? `Reply to ${replyingTo.sender.name}...` 
-                    : "Enter a message.."
-                }
-                value={newMessage}
-                onChange={typingHandler}
-                onKeyDown={sendMessage}
-              />
+              <HStack spacing={2}>
+                <Input
+                  variant="filled"
+                  bg="#E0E0E0"
+                  placeholder={
+                    editingMessage 
+                      ? "Edit your message..." 
+                      : replyingTo 
+                      ? `Reply to ${replyingTo.sender.name}...` 
+                      : "Enter a message.."
+                  }
+                  value={newMessage}
+                  onChange={typingHandler}
+                  onKeyDown={sendMessage}
+                  onPaste={handlePaste}
+                  disabled={uploading}
+                />
+                <Button
+                  size="md"
+                  colorScheme="blue"
+                  variant="ghost"
+                  onClick={() => setShowFileUpload(!showFileUpload)}
+                  aria-label="Attach files"
+                >
+                  📎
+                </Button>
+                {(newMessage || selectedFiles.length > 0) && (
+                  <Button
+                    size="md"
+                    colorScheme="blue"
+                    onClick={() => sendMessage({ key: "Enter" })}
+                    isLoading={uploading}
+                    loadingText="Sending..."
+                  >
+                    Send
+                  </Button>
+                )}
+              </HStack>
             </FormControl>
           </Box>
         </Box>

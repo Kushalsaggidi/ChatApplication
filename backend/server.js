@@ -19,6 +19,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(express.static('uploads'));
 
 // CORS Configuration - PRODUCTION READY
 app.use(cors({

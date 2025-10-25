@@ -16,7 +16,19 @@ const messageSchema = mongoose.Schema(
       emoji: { type: String, required: true }
     }],
     isEdited: { type: Boolean, default: false },
-    editedAt: { type: Date }
+    editedAt: { type: Date },
+    attachments: [{
+      fileName: { type: String, required: true },
+      fileUrl: { type: String, required: true },
+      fileType: { type: String, required: true },
+      fileSize: { type: Number, required: true },
+      uploadedAt: { type: Date, default: Date.now }
+    }],
+    messageType: { 
+      type: String, 
+      enum: ['text', 'image', 'file', 'mixed'], 
+      default: 'text' 
+    }
   },
   { timestamps: true }
 );

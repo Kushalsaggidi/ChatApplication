@@ -2,6 +2,45 @@ const asyncHandler = require("express-async-handler");
 const Message = require("../models/messageModel");
 const User = require("../models/userModel");
 const Chat = require("../models/chatModel");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Allow images and common file types
+  const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|mp4|mp3|zip/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+  
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Only images and common file types are allowed!'));
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: fileFilter
+});
 
 //@description     Get all Messages
 //@route           GET /api/Message/:chatId
@@ -27,16 +66,38 @@ const allMessages = asyncHandler(async (req, res) => {
 const sendMessage = asyncHandler(async (req, res) => {
   const { content, chatId, replyTo } = req.body;
 
-  if (!content || !chatId) {
+  if (!content && (!req.files || req.files.length === 0)) {
     console.log("Invalid data passed into request");
     return res.sendStatus(400);
   }
 
+  // Process file attachments
+  let attachments = [];
+  let messageType = 'text';
+
+  if (req.files && req.files.length > 0) {
+    attachments = req.files.map(file => ({
+      fileName: file.originalname,
+      fileUrl: `/uploads/${file.filename}`,
+      fileType: file.mimetype,
+      fileSize: file.size
+    }));
+
+    // Determine message type
+    if (attachments.length === 1 && attachments[0].fileType.startsWith('image/')) {
+      messageType = 'image';
+    } else if (attachments.length > 0) {
+      messageType = content ? 'mixed' : 'file';
+    }
+  }
+
   var newMessage = {
     sender: req.user._id,
-    content: content,
+    content: content || '',
     chat: chatId,
     replyTo: replyTo || null,
+    attachments: attachments,
+    messageType: messageType
   };
 
   try {
