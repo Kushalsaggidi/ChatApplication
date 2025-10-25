@@ -14,6 +14,7 @@ import ScrollableChat from "./ScrollableChat";
 import io from "socket.io-client";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import { ChatState } from "../Context/ChatProvider";
+import EmojiPicker from 'emoji-picker-react';
 
 const ENDPOINT = process.env.REACT_APP_API_URL || "http://localhost:5000";
 var socket, selectedChatCompare;
@@ -32,7 +33,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState({});
-  
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   
@@ -236,6 +238,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         }
       }
     }
+    const handleEmojiClick = (emojiObject) => {
+      setNewMessage(prevMessage => prevMessage + emojiObject.emoji);
+      setShowEmojiPicker(false);
+    };
+
     
     if (files.length > 0) {
       handleFilesSelect(files);
@@ -579,55 +586,75 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               </Box>
             )}
 
-            <FormControl id="message-input" isRequired>
-              {istyping && (
-                <Box mb={2} ml={0}>
-                  <Spinner size="sm" color="blue.500" />
-                  <Text fontSize="xs" color="gray.500" ml={2} display="inline">
-                    typing...
-                  </Text>
-                </Box>
-              )}
+          <FormControl id="message-input" isRequired>
+            {istyping && (
+              <Box mb={2} ml={0}>
+                <Spinner size="sm" color="blue.500" />
+                <Text fontSize="xs" color="gray.500" ml={2} display="inline">
+                  typing...
+                </Text>
+              </Box>
+            )}
 
-              <HStack spacing={2}>
-                <Input
-                  variant="filled"
-                  bg="#E0E0E0"
-                  placeholder={
-                    editingMessage 
-                      ? "Edit your message..." 
-                      : replyingTo 
-                      ? `Reply to ${replyingTo.sender.name}...` 
-                      : "Enter a message.."
-                  }
-                  value={newMessage}
-                  onChange={typingHandler}
-                  onKeyDown={sendMessage}
-                  onPaste={handlePaste}
-                  disabled={uploading}
-                />
-                <Button
+            {/* Emoji Picker */}
+            {showEmojiPicker && (
+              <Box position="absolute" bottom="60px" left="20px" zIndex={1000}>
+                <EmojiPicker onEmojiClick={handleEmojiClick} width={300} height={400} />
+              </Box>
+            )}
+
+            <HStack spacing={2}>
+              {/* Emoji Button */}
+              <IconButton
+                size="md"
+                icon={<Text fontSize="xl">😊</Text>}
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                aria-label="Emoji picker"
+                variant="ghost"
+                colorScheme="gray"
+              />
+
+              <Input
+                variant="filled"
+                bg="#E0E0E0"
+                placeholder={
+                  editingMessage 
+                    ? "Edit your message..." 
+                    : replyingTo 
+                    ? `Reply to ${replyingTo.sender.name}...` 
+                    : "Enter a message.."
+                }
+                value={newMessage}
+                onChange={typingHandler}
+                onKeyDown={sendMessage}
+                onPaste={handlePaste}
+                disabled={uploading}
+              />
+
+              {/* File Attach Button */}
+              <IconButton
+                size="md"
+                icon={<Text fontSize="xl">📎</Text>}
+                onClick={() => setShowFileUpload(!showFileUpload)}
+                aria-label="Attach files"
+                variant="ghost"
+                colorScheme="gray"
+              />
+
+              {/* Send Button */}
+              {(newMessage || selectedFiles.length > 0) && (
+                <IconButton
                   size="md"
+                  icon={<Text fontSize="xl">➤</Text>}
+                  onClick={() => sendMessage({ key: "Enter" })}
+                  isLoading={uploading}
                   colorScheme="blue"
-                  variant="ghost"
-                  onClick={() => setShowFileUpload(!showFileUpload)}
-                  aria-label="Attach files"
-                >
-                  📎
-                </Button>
-                {(newMessage || selectedFiles.length > 0) && (
-                  <Button
-                    size="md"
-                    colorScheme="blue"
-                    onClick={() => sendMessage({ key: "Enter" })}
-                    isLoading={uploading}
-                    loadingText="Sending..."
-                  >
-                    Send
-                  </Button>
-                )}
-              </HStack>
-            </FormControl>
+                  aria-label="Send message"
+                />
+              )}
+            </HStack>
+          </FormControl>
+
           </Box>
         </Box>
       ) : (
