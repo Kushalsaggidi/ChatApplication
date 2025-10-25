@@ -1,18 +1,19 @@
 const express = require("express");
 const connectDB = require("./config/db");
 const dotenv = require("dotenv");
-const cors = require("cors"); // Import cors
+const cors = require("cors");
 const userRoutes = require("./routes/userRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const path = require("path");
+const User = require("./models/userModel");
 
 dotenv.config();
 connectDB();
 const app = express();
 
-// CORS Configuration - ADD THIS BEFORE OTHER MIDDLEWARE
+// CORS Configuration
 const corsOptions = {
   origin: [
     "http://localhost:3000",
@@ -24,18 +25,31 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-app.use(cors(corsOptions)); // Use CORS middleware
+app.use(cors(corsOptions));
+app.use(express.json());
 
-app.use(express.json()); // to accept json data
-
-// Serve static files from uploads directory
+// Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
 
-// Error Handling middlewares
+// Deployment
+const __dirname1 = path.resolve();
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname1, "/frontend/build")));
+
+  app.get("*", (req, res) =>
+    res.sendFile(path.resolve(__dirname1, "frontend", "build", "index.html"))
+  );
+} else {
+  app.get("/", (req, res) => {
+    res.send("API is running..");
+  });
+}
+
 app.use(notFound);
 app.use(errorHandler);
 
@@ -46,7 +60,6 @@ const server = app.listen(
   console.log(`Server running on PORT ${PORT}...`)
 );
 
-// Socket.IO with CORS
 const io = require("socket.io")(server, {
   pingTimeout: 60000,
   cors: {
@@ -63,9 +76,19 @@ const io = require("socket.io")(server, {
 io.on("connection", (socket) => {
   console.log("Connected to socket.io");
 
-  socket.on("setup", (userData) => {
+  // User setup and online status
+  socket.on("setup", async (userData) => {
     socket.join(userData._id);
     socket.emit("connected");
+    
+    // Mark user as online
+    await User.findByIdAndUpdate(userData._id, {
+      isOnline: true,
+      socketId: socket.id
+    });
+    
+    // Broadcast online status
+    socket.broadcast.emit("user online", userData._id);
   });
 
   socket.on("join chat", (room) => {
@@ -87,6 +110,17 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Message delivered event
+  socket.on("message delivered", ({ messageId, userId }) => {
+    socket.broadcast.emit("message delivery status", { messageId, userId });
+  });
+
+  // Message read event
+  socket.on("messages read", ({ chatId, userId, messageIds }) => {
+    socket.broadcast.emit("messages read status", { chatId, userId, messageIds });
+  });
+
+  // Message edited event
   socket.on("message edited", (editedMessage) => {
     var chat = editedMessage.chat;
 
@@ -97,8 +131,24 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.off("setup", () => {
+  // User disconnection
+  socket.on("disconnect", async () => {
     console.log("USER DISCONNECTED");
-    socket.leave(userData._id);
+    
+    // Find user by socket ID and mark as offline
+    const user = await User.findOne({ socketId: socket.id });
+    if (user) {
+      await User.findByIdAndUpdate(user._id, {
+        isOnline: false,
+        lastSeen: new Date(),
+        socketId: null
+      });
+      
+      // Broadcast offline status
+      socket.broadcast.emit("user offline", { 
+        userId: user._id, 
+        lastSeen: new Date() 
+      });
+    }
   });
 });

@@ -25,7 +25,12 @@ const messageSchema = mongoose.Schema(
     },
     editedAt: { 
       type: Date 
-    }
+    },
+    deliveredTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    reactions: [{
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      emoji: String
+    }]
   },
   { timestamps: true }
 );

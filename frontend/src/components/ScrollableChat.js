@@ -4,7 +4,7 @@ import {
   Image, Link, Badge 
 } from "@chakra-ui/react";
 import { Tooltip } from "@chakra-ui/react";
-import { ChevronDownIcon, CopyIcon, EditIcon, DeleteIcon, DownloadIcon } from "@chakra-ui/icons";
+import { ChevronDownIcon, CopyIcon, EditIcon, DeleteIcon, CheckIcon } from "@chakra-ui/icons";
 import ScrollableFeed from "react-scrollable-feed";
 import {
   isLastMessage,
@@ -16,7 +16,7 @@ import { ChatState } from "../Context/ChatProvider";
 import { useState } from "react";
 import axios from "axios";
 
-const ScrollableChat = ({ messages, onReply, onEdit }) => {
+const ScrollableChat = ({ messages, onReply, onEdit, currentUser }) => {
   const { user } = ChatState();
   const toast = useToast();
   const [hoveredMessage, setHoveredMessage] = useState(null);
@@ -45,10 +45,17 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
       const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
       const config = {
         headers: {
+          "Content-type": "application/json",
           Authorization: `Bearer ${user.token}`,
         },
       };
       await axios.post(`${API_URL}/api/message/${messageId}/reaction`, { emoji }, config);
+      toast({
+        title: "Reaction added",
+        status: "success",
+        duration: 1000,
+        isClosable: true,
+      });
     } catch (error) {
       console.error("Error adding reaction:", error);
     }
@@ -82,6 +89,34 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
 
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Get message status (sent, delivered, read)
+  const getMessageStatus = (message) => {
+    if (!message.sender || message.sender._id !== user._id) {
+      return null; // Don't show status for received messages
+    }
+
+    const isRead = message.readBy && message.readBy.length > 1; // More than just sender
+    const isDelivered = message.deliveredTo && message.deliveredTo.length > 1;
+
+    if (isRead) {
+      return (
+        <HStack spacing={0} color="blue.500">
+          <CheckIcon boxSize={3} />
+          <CheckIcon boxSize={3} ml={-1} />
+        </HStack>
+      );
+    } else if (isDelivered) {
+      return (
+        <HStack spacing={0} color="gray.500">
+          <CheckIcon boxSize={3} />
+          <CheckIcon boxSize={3} ml={-1} />
+        </HStack>
+      );
+    } else {
+      return <CheckIcon boxSize={3} color="gray.400" />;
+    }
   };
 
   return (
@@ -128,7 +163,7 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
                     borderLeft="2px solid"
                     borderLeftColor={m.sender._id === user._id ? "#4A90E2" : "#4CAF50"}
                   >
-                    <Text fontWeight="bold">{m.replyTo.sender.name}</Text>
+                    <Text fontWeight="bold">{m.replyTo.sender?.name || "User"}</Text>
                     <Text noOfLines={1}>{m.replyTo.content}</Text>
                   </Box>
                 )}
@@ -182,13 +217,14 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
                     </VStack>
                   )}
 
+                  {/* Edited indicator */}
                   {m.isEdited && (
                     <Text fontSize="xs" color="gray.500" mt={1}>
                       (edited)
                     </Text>
                   )}
 
-                  {/* Message Actions */}
+                  {/* Message Actions on Hover */}
                   {hoveredMessage === m._id && (
                     <HStack
                       position="absolute"
@@ -288,10 +324,11 @@ const ScrollableChat = ({ messages, onReply, onEdit }) => {
                   </HStack>
                 )}
 
-                {/* Timestamp */}
-                <Text fontSize="10px" color="gray.500" mt={1}>
-                  {formatTime(m.createdAt)}
-                </Text>
+                {/* Timestamp and Status */}
+                <HStack mt={1} spacing={1} fontSize="10px" color="gray.500">
+                  <Text>{formatTime(m.createdAt)}</Text>
+                  {getMessageStatus(m)}
+                </HStack>
               </Box>
             </Box>
           </Box>

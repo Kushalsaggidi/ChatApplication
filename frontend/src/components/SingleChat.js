@@ -3,7 +3,7 @@ import { Input } from "@chakra-ui/react";
 import { Box, Text } from "@chakra-ui/react";
 import { HStack, Button } from "@chakra-ui/react";
 import "./styles.css";
-import { IconButton, Spinner, useToast } from "@chakra-ui/react";
+import { IconButton, Spinner, useToast, Badge } from "@chakra-ui/react";
 import FileUpload from "./FileUpload";
 import { getSender, getSenderFull } from "../config/ChatLogics";
 import { useEffect, useState, useRef } from "react";
@@ -11,7 +11,6 @@ import axios from "axios";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import ScrollableChat from "./ScrollableChat";
-import animationData from "../animations/typing.json";
 import io from "socket.io-client";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import { ChatState } from "../Context/ChatProvider";
@@ -32,8 +31,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState({});
   
-  // Add refs for scrolling
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   
@@ -62,6 +61,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       setLoading(false);
 
       socket.emit("join chat", selectedChat._id);
+      
+      // Mark messages as read
+      markMessagesAsRead();
     } catch (error) {
       toast({
         title: "Error Occured!",
@@ -75,6 +77,47 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
+  // Mark messages as read
+  const markMessagesAsRead = async () => {
+    if (!selectedChat) return;
+
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      const config = {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
+
+      const { data } = await axios.put(
+        `${API_URL}/api/message/${selectedChat._id}/read`,
+        {},
+        config
+      );
+
+      if (data.messageIds && data.messageIds.length > 0) {
+        // Emit socket event for read receipts
+        socket.emit("messages read", {
+          chatId: selectedChat._id,
+          userId: user._id,
+          messageIds: data.messageIds
+        });
+
+        // Update local messages
+        setMessages(prevMessages =>
+          prevMessages.map(msg => {
+            if (data.messageIds.includes(msg._id) && !msg.readBy.includes(user._id)) {
+              return { ...msg, readBy: [...msg.readBy, user._id] };
+            }
+            return msg;
+          })
+        );
+      }
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  };
+
   const sendMessage = async (event) => {
     if (event.key === "Enter" && (newMessage || selectedFiles.length > 0)) {
       socket.emit("stop typing", selectedChat._id);
@@ -83,7 +126,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       try {
         const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
         
-        // If editing a message
         if (editingMessage) {
           const config = {
             headers: {
@@ -98,13 +140,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             config
           );
           
-          // Update the message in the messages array
           setMessages(messages.map(msg => 
             msg._id === editingMessage._id ? data : msg
           ));
+          
+          socket.emit("message edited", data);
           setEditingMessage(null);
         } else {
-          // Send new message with files
           const formData = new FormData();
           formData.append('content', newMessage);
           formData.append('chatId', selectedChat._id);
@@ -112,7 +154,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             formData.append('replyTo', replyingTo._id);
           }
           
-          // Add files to form data
           selectedFiles.forEach((file) => {
             formData.append('files', file);
           });
@@ -134,7 +175,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           setMessages([...messages, data]);
         }
         
-        // Reset form
         setNewMessage("");
         setSelectedFiles([]);
         setShowFileUpload(false);
@@ -209,7 +249,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
-  // Scroll to bottom function
   const scrollToBottom = (behavior = 'smooth') => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
@@ -223,17 +262,39 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     socket.on("connected", () => setSocketConnected(true));
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
+    
+    // Listen for online/offline status
+    socket.on("user online", (userId) => {
+      setOnlineUsers(prev => ({ ...prev, [userId]: true }));
+    });
+    
+    socket.on("user offline", ({ userId, lastSeen }) => {
+      setOnlineUsers(prev => ({ ...prev, [userId]: false }));
+    });
+    
+    // Listen for read status updates
+    socket.on("messages read status", ({ chatId, userId, messageIds }) => {
+      if (selectedChat && selectedChat._id === chatId) {
+        setMessages(prevMessages =>
+          prevMessages.map(msg => {
+            if (messageIds.includes(msg._id) && !msg.readBy.includes(userId)) {
+              return { ...msg, readBy: [...msg.readBy, userId] };
+            }
+            return msg;
+          })
+        );
+      }
+    });
+    
     // eslint-disable-next-line
   }, []);
 
-  // Fetch messages when chat changes
   useEffect(() => {
     fetchMessages();
     selectedChatCompare = selectedChat;
     // eslint-disable-next-line
   }, [selectedChat]);
 
-  // Auto scroll when messages load or change
   useEffect(() => {
     if (!loading && messages.length > 0) {
       setTimeout(() => {
@@ -242,7 +303,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   }, [messages, loading]);
 
-  // Scroll when chat changes
   useEffect(() => {
     if (selectedChat && !loading) {
       setTimeout(() => {
@@ -251,7 +311,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   }, [selectedChat]);
 
-  // Handle scroll events to show/hide scroll button
   const handleScroll = () => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
@@ -260,7 +319,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
-  // Handle incoming messages
   useEffect(() => {
     socket.on("message recieved", (newMessageRecieved) => {
       if (
@@ -273,7 +331,17 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         }
       } else {
         setMessages([...messages, newMessageRecieved]);
+        // Auto mark as read if chat is open
+        markMessagesAsRead();
       }
+    });
+    
+    socket.on("message updated", (updatedMessage) => {
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        )
+      );
     });
   });
 
@@ -298,6 +366,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
+  // Get online status
+  const getOnlineStatus = () => {
+    if (selectedChat && !selectedChat.isGroupChat) {
+      const otherUser = selectedChat.users.find(u => u._id !== user._id);
+      return onlineUsers[otherUser._id];
+    }
+    return false;
+  };
+
   return (
     <>
       {selectedChat ? (
@@ -308,7 +385,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           w="100%"
         >
           {/* Header */}
-          <Text
+          <Box
             fontSize={{ base: "28px", md: "30px" }}
             pb={3}
             px={2}
@@ -318,31 +395,45 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             alignItems="center"
             flexShrink={0}
           >
-            <IconButton
-              display={{ base: "flex", md: "none" }}
-              icon={<ArrowBackIcon />}
-              onClick={() => setSelectedChat("")}
-              aria-label="Go back"
-            />
+            <HStack>
+              <IconButton
+                display={{ base: "flex", md: "none" }}
+                icon={<ArrowBackIcon />}
+                onClick={() => setSelectedChat("")}
+                aria-label="Go back"
+              />
+              <Box>
+                <Text>
+                  {!selectedChat.isGroupChat ? (
+                    getSender(user, selectedChat.users)
+                  ) : (
+                    selectedChat.chatName.toUpperCase()
+                  )}
+                </Text>
+                {!selectedChat.isGroupChat && (
+                  <Text fontSize="xs" color="gray.500">
+                    {getOnlineStatus() ? (
+                      <Badge colorScheme="green">Online</Badge>
+                    ) : (
+                      "Offline"
+                    )}
+                  </Text>
+                )}
+              </Box>
+            </HStack>
             {messages &&
               (!selectedChat.isGroupChat ? (
-                <>
-                  {getSender(user, selectedChat.users)}
-                  <ProfileModal
-                    user={getSenderFull(user, selectedChat.users)}
-                  />
-                </>
+                <ProfileModal
+                  user={getSenderFull(user, selectedChat.users)}
+                />
               ) : (
-                <>
-                  {selectedChat.chatName.toUpperCase()}
-                  <UpdateGroupChatModal
-                    fetchMessages={fetchMessages}
-                    fetchAgain={fetchAgain}
-                    setFetchAgain={setFetchAgain}
-                  />
-                </>
+                <UpdateGroupChatModal
+                  fetchMessages={fetchMessages}
+                  fetchAgain={fetchAgain}
+                  setFetchAgain={setFetchAgain}
+                />
               ))}
-          </Text>
+          </Box>
 
           {/* Messages Container */}
           <Box
@@ -393,12 +484,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   messages={messages} 
                   onReply={handleReply}
                   onEdit={handleEdit}
+                  currentUser={user}
                 />
                 
-                {/* Scroll anchor */}
                 <div ref={messagesEndRef} />
                 
-                {/* Scroll to bottom button */}
                 {showScrollButton && (
                   <IconButton
                     position="absolute"
@@ -421,7 +511,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
           {/* Input Container */}
           <Box p={3} bg="white" flexShrink={0}>
-            {/* Reply Preview */}
             {replyingTo && (
               <Box
                 bg="blue.50"
@@ -450,7 +539,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               </Box>
             )}
 
-            {/* Edit Mode */}
             {editingMessage && (
               <Box
                 bg="yellow.50"
@@ -481,7 +569,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               </Box>
             )}
 
-            {/* File Upload Area */}
             {showFileUpload && (
               <Box mb={3}>
                 <FileUpload
@@ -496,6 +583,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               {istyping && (
                 <Box mb={2} ml={0}>
                   <Spinner size="sm" color="blue.500" />
+                  <Text fontSize="xs" color="gray.500" ml={2} display="inline">
+                    typing...
+                  </Text>
                 </Box>
               )}
 

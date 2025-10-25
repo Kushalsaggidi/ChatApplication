@@ -15,7 +15,9 @@ const allMessages = asyncHandler(async (req, res) => {
           path: "sender",
           select: "name pic"
         }
-      });
+      })
+      .populate("readBy", "name pic email")
+      .populate("deliveredTo", "name pic email");
     res.json(messages);
   } catch (error) {
     res.status(400);
@@ -31,7 +33,6 @@ const sendMessage = asyncHandler(async (req, res) => {
     return res.sendStatus(400);
   }
 
-  // Prepare files array
   let filesArray = [];
   if (req.files && req.files.length > 0) {
     filesArray = req.files.map(file => ({
@@ -47,10 +48,10 @@ const sendMessage = asyncHandler(async (req, res) => {
     sender: req.user._id,
     content: content || "",
     chat: chatId,
-    files: filesArray
+    files: filesArray,
+    deliveredTo: [req.user._id] // Mark as delivered to sender
   };
 
-  // Add replyTo if provided
   if (replyTo) {
     newMessage.replyTo = replyTo;
   }
@@ -84,7 +85,6 @@ const editMessage = asyncHandler(async (req, res) => {
     throw new Error("Message content cannot be empty");
   }
 
-  // Find the message
   const message = await Message.findById(messageId);
 
   if (!message) {
@@ -92,20 +92,17 @@ const editMessage = asyncHandler(async (req, res) => {
     throw new Error("Message not found");
   }
 
-  // Check if user is the sender
   if (message.sender.toString() !== req.user._id.toString()) {
     res.status(403);
     throw new Error("User not authorized to edit this message");
   }
 
-  // Update the message
   message.content = content;
   message.isEdited = true;
   message.editedAt = Date.now();
 
   const updatedMessage = await message.save();
 
-  // Populate fields
   const populatedMessage = await Message.findById(updatedMessage._id)
     .populate("sender", "name pic")
     .populate("chat")
@@ -124,7 +121,6 @@ const deleteMessage = asyncHandler(async (req, res) => {
     throw new Error("Message not found");
   }
 
-  // Check if user is the sender
   if (message.sender.toString() !== req.user._id.toString()) {
     res.status(403);
     throw new Error("User not authorized to delete this message");
@@ -134,4 +130,114 @@ const deleteMessage = asyncHandler(async (req, res) => {
   res.json({ message: "Message deleted successfully" });
 });
 
-module.exports = { allMessages, sendMessage, editMessage, deleteMessage };
+// NEW: Mark messages as read
+const markMessagesAsRead = asyncHandler(async (req, res) => {
+  const { chatId } = req.params;
+  const userId = req.user._id;
+
+  try {
+    // Find all messages in the chat that haven't been read by this user
+    const messages = await Message.find({
+      chat: chatId,
+      sender: { $ne: userId }, // Not sent by this user
+      readBy: { $ne: userId }   // Not already read by this user
+    });
+
+    // Update all unread messages
+    await Message.updateMany(
+      {
+        chat: chatId,
+        sender: { $ne: userId },
+        readBy: { $ne: userId }
+      },
+      {
+        $addToSet: { readBy: userId }
+      }
+    );
+
+    res.json({ 
+      success: true, 
+      count: messages.length,
+      messageIds: messages.map(m => m._id)
+    });
+  } catch (error) {
+    res.status(400);
+    throw new Error(error.message);
+  }
+});
+
+// NEW: Mark message as delivered
+const markMessageAsDelivered = asyncHandler(async (req, res) => {
+  const { messageId } = req.params;
+  const userId = req.user._id;
+
+  try {
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      res.status(404);
+      throw new Error("Message not found");
+    }
+
+    // Add user to deliveredTo if not already there
+    if (!message.deliveredTo.includes(userId)) {
+      message.deliveredTo.push(userId);
+      await message.save();
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400);
+    throw new Error(error.message);
+  }
+});
+
+// NEW: Add reaction to message
+const addReaction = asyncHandler(async (req, res) => {
+  const { messageId } = req.params;
+  const { emoji } = req.body;
+  const userId = req.user._id;
+
+  try {
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      res.status(404);
+      throw new Error("Message not found");
+    }
+
+    // Check if user already reacted
+    const existingReaction = message.reactions.find(
+      r => r.user.toString() === userId.toString()
+    );
+
+    if (existingReaction) {
+      // Update existing reaction
+      existingReaction.emoji = emoji;
+    } else {
+      // Add new reaction
+      message.reactions.push({ user: userId, emoji });
+    }
+
+    await message.save();
+
+    const populatedMessage = await Message.findById(message._id)
+      .populate("sender", "name pic")
+      .populate("reactions.user", "name pic");
+
+    res.json(populatedMessage);
+  } catch (error) {
+    res.status(400);
+    throw new Error(error.message);
+  }
+});
+
+module.exports = { 
+  allMessages, 
+  sendMessage, 
+  editMessage, 
+  deleteMessage,
+  markMessagesAsRead,
+  markMessageAsDelivered,
+  addReaction
+};
