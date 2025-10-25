@@ -11,27 +11,25 @@ const messageSchema = mongoose.Schema(
       ref: "Message",
       default: null 
     },
-    reactions: [{
-      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      emoji: { type: String, required: true }
-    }],
-    isEdited: { type: Boolean, default: false },
-    editedAt: { type: Date },
-    attachments: [{
-      fileName: { type: String, required: true },
-      fileUrl: { type: String, required: true },
-      fileType: { type: String, required: true },
-      fileSize: { type: Number, required: true },
+    files: [{
+      filename: String,
+      originalName: String,
+      path: String,
+      mimetype: String,
+      size: Number,
       uploadedAt: { type: Date, default: Date.now }
     }],
-    messageType: { 
-      type: String, 
-      enum: ['text', 'image', 'file', 'mixed'], 
-      default: 'text' 
+    isEdited: { 
+      type: Boolean, 
+      default: false 
+    },
+    editedAt: { 
+      type: Date 
     }
   },
   { timestamps: true }
 );
 
 const Message = mongoose.model("Message", messageSchema);
+
 module.exports = Message;
