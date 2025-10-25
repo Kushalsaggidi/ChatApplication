@@ -25,6 +25,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [istyping, setIsTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
   const toast = useToast();
 
   const defaultOptions = {
@@ -82,13 +84,19 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             Authorization: `Bearer ${user.token}`,
           },
         };
+        
+        const messageContent = newMessage;
         setNewMessage("");
+        setReplyingTo(null);
+        setEditingMessage(null);
+        
         const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
         const { data } = await axios.post(
           `${API_URL}/api/message`,
           {
-            content: newMessage,
+            content: messageContent,
             chatId: selectedChat,
+            replyTo: replyingTo?._id || null,
           },
           config
         );
@@ -96,7 +104,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         setMessages([...messages, data]);
       } catch (error) {
         toast({
-          title: "Error Occured!",
+          title: "Error Occurred!",
           description: "Failed to send the Message",
           status: "error",
           duration: 5000,
@@ -105,6 +113,23 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         });
       }
     }
+  };
+
+  const handleReply = (message) => {
+    setReplyingTo(message);
+    setEditingMessage(null);
+  };
+
+  const handleEdit = (message) => {
+    setEditingMessage(message);
+    setNewMessage(message.content);
+    setReplyingTo(null);
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
+    setEditingMessage(null);
+    setNewMessage("");
   };
 
   useEffect(() => {
@@ -229,13 +254,70 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               />
             ) : (
               <div className="messages" style={{ flex: 1, overflowY: "auto" }}>
-                <ScrollableChat messages={messages} />
+                <ScrollableChat 
+                  messages={messages} 
+                  onReply={handleReply}
+                  onEdit={handleEdit}
+                />
               </div>
             )}
           </Box>
 
           {/* Input Container */}
           <Box p={3} bg="white" flexShrink={0}>
+            {/* Reply Preview */}
+            {replyingTo && (
+              <Box
+                bg="blue.50"
+                p={2}
+                borderRadius="md"
+                mb={2}
+                borderLeft="3px solid"
+                borderLeftColor="blue.400"
+              >
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Box>
+                    <Text fontSize="sm" fontWeight="bold" color="blue.600">
+                      Replying to {replyingTo.sender.name}
+                    </Text>
+                    <Text fontSize="xs" color="gray.600" noOfLines={1}>
+                      {replyingTo.content}
+                    </Text>
+                  </Box>
+                  <IconButton
+                    size="sm"
+                    icon={<Text>×</Text>}
+                    onClick={cancelReply}
+                    aria-label="Cancel reply"
+                  />
+                </Box>
+              </Box>
+            )}
+
+            {/* Edit Mode */}
+            {editingMessage && (
+              <Box
+                bg="yellow.50"
+                p={2}
+                borderRadius="md"
+                mb={2}
+                borderLeft="3px solid"
+                borderLeftColor="yellow.400"
+              >
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Text fontSize="sm" fontWeight="bold" color="yellow.600">
+                    Editing message
+                  </Text>
+                  <IconButton
+                    size="sm"
+                    icon={<Text>×</Text>}
+                    onClick={cancelReply}
+                    aria-label="Cancel edit"
+                  />
+                </Box>
+              </Box>
+            )}
+
             <FormControl id="message-input" isRequired>
               {istyping && (
                 <Box mb={2} ml={0}>
@@ -246,7 +328,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               <Input
                 variant="filled"
                 bg="#E0E0E0"
-                placeholder="Enter a message.."
+                placeholder={
+                  editingMessage 
+                    ? "Edit your message..." 
+                    : replyingTo 
+                    ? `Reply to ${replyingTo.sender.name}...` 
+                    : "Enter a message.."
+                }
                 value={newMessage}
                 onChange={typingHandler}
                 onKeyDown={sendMessage}
