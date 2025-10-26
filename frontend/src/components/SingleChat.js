@@ -137,6 +137,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             { content: newMessage },
             config
           );
+          // PATCH sender object for alignment!
+          if (!data.sender || !data.sender._id) {
+            data.sender = user;
+          }
           
           setMessages(messages.map(msg => 
             msg._id === editingMessage._id ? data : msg
@@ -321,6 +325,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
   useEffect(() => {
     socket.on("message recieved", (newMessageRecieved) => {
+      if (!newMessageRecieved.sender || !newMessageRecieved.sender._id) {
+        newMessageRecieved.sender = user;
+      }
       if (
         !selectedChatCompare ||
         selectedChatCompare._id !== newMessageRecieved.chat._id
@@ -498,7 +505,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                     boxShadow="lg"
                     onClick={() => scrollToBottom('smooth')}
                     aria-label="Scroll to bottom"
-                    icon={<Text fontSize="lg">â†“</Text>}
+                    icon={<Text fontSize="lg">Ã¢â€ â€œ</Text>}
                     _hover={{ transform: "scale(1.1)" }}
                     transition="all 0.2s ease"
                   />
@@ -529,7 +536,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   </Box>
                   <IconButton
                     size="sm"
-                    icon={<Text>Ã—</Text>}
+                    icon={<Text>Ãƒâ€”</Text>}
                     onClick={cancelReply}
                     aria-label="Cancel reply"
                   />
@@ -549,15 +556,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                   <HStack>
                     <Text fontSize="sm" fontWeight="bold" color="yellow.600">
-                      âœï¸ Editing message
+                      Ã¢Å“ÂÃ¯Â¸Â Editing message
                     </Text>
                     <Text fontSize="xs" color="yellow.500">
-                      Press Enter to save, or click Ã— to cancel
+                      Press Enter to save, or click Ãƒâ€” to cancel
                     </Text>
                   </HStack>
                   <IconButton
                     size="sm"
-                    icon={<Text>Ã—</Text>}
+                    icon={<Text>Ãƒâ€”</Text>}
                     onClick={cancelReply}
                     aria-label="Cancel edit"
                     colorScheme="yellow"
@@ -611,7 +618,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 {/* Emoji Button */}
                 <IconButton
                   size="md"
-                  icon={<Text fontSize="xl">ðŸ˜Š</Text>}
+                  icon={<Text fontSize="xl">Ã°Å¸ËœÅ </Text>}
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   aria-label="Emoji picker"
                   variant="ghost"
@@ -639,7 +646,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 {/* File Attach Button */}
                 <IconButton
                   size="md"
-                  icon={<Text fontSize="xl">ðŸ“Ž</Text>}
+                  icon={<Text fontSize="xl">Ã°Å¸â€œÅ½</Text>}
                   onClick={() => {
                     setShowFileUpload(!showFileUpload);
                     setShowEmojiPicker(false);
@@ -653,7 +660,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 {(newMessage || selectedFiles.length > 0) && (
                   <IconButton
                     size="md"
-                    icon={<Text fontSize="xl">âž¤</Text>}
+                    icon={<Text fontSize="xl">Ã¢Å¾Â¤</Text>}
                     onClick={() => sendMessage({ key: "Enter" })}
                     isLoading={uploading}
                     colorScheme="blue"
